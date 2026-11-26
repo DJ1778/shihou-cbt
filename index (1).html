@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>司法試験 CBT 演習</title>
+<meta name="description" content="司法試験CBT方式の論文式演習。本番と同じ23行×30字の答案欄、試験用法文、マーカー、構成用紙、タイマー。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=BIZ+UDPGothic:wght@400;700&family=BIZ+UDPMincho&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 法務省の司法試験等CBTシステム（体験版）の受験画面に倣う。業務アプリの静けさ。
+   IDEA: 本番端末の試験画面。上部ツールバー、問題・答案・試験用法文の3画面、構成用紙。
+   PICTURE: 試験画面そのもの。問題は紙面にペン・マーカーで書き込み、答案は23行×30字。
+   COLOUR and TYPE: 明るい灰色のツールバー、青緑のアクセント、マーカー5色。BIZ UDゴシック／明朝。
+   LAYOUT: 広い画面は3画面を並べ境界をドラッグで調整。狭い画面は1画面ずつ切替。 */
+:root{color-scheme:light dark;
+--bg:light-dark(#ffffff,#141a1b);--ink:light-dark(#18211f,#e6ecea);--sub:light-dark(#5d6a67,#9aa8a5);
+--line:light-dark(#cfd7d5,#2f393b);--pane:light-dark(#f3f5f5,#1b2224);--bar:light-dark(#e7ebeb,#20292b);--hd:light-dark(#0e4f55,#0b3b40);
+--acc:light-dark(#0e6f77,#5cc3c9);--onacc:light-dark(#fff,#0b2224);--warn:#d8452a;--rule:light-dark(#e3e9e7,#263032);--hit:light-dark(#ffe066,#7a6400);--hitc:light-dark(#ff9f1c,#c47300)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.7 "BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;overflow-x:clip}
+button,select,textarea,input{font:inherit;color:inherit}
+button{min-height:44px;padding:0 14px;border-radius:6px;border:1px solid var(--line);background:var(--bg);cursor:pointer;white-space:nowrap}
+button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.pri{background:var(--acc);border-color:var(--acc);color:var(--onacc);font-weight:700}
+select,input[type=search],input[type=text],input[type=number]{min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);font-size:16px}
+textarea.box{width:100%;border:1px solid var(--line);border-radius:6px;padding:10px;background:var(--bg);font-size:16px;resize:vertical}
+.hd{position:sticky;top:0;z-index:5;display:flex;flex-wrap:nowrap;align-items:center;gap:12px;padding:10px max(3vw,14px);background:var(--hd);color:#fff;min-height:64px}
+.hd b{font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hd .sp{flex:1}
+.hd button{background:transparent;color:#fff;border-color:#ffffff66}
+.view{display:none}.view.on{display:block}
+.wrap{max-width:980px;margin:0 auto;padding:clamp(22px,4vw,48px) max(4vw,16px)}
+h1{font-size:clamp(26px,4.6vw,38px);line-height:1.1;margin:0 0 6px;text-wrap:balance}
+h2{font-size:20px;margin:26px 0 10px}
+.lead{color:var(--sub);margin:0 0 22px;max-width:64ch}
+.form{display:grid;gap:16px}
+.fl{display:grid;gap:6px}.fl>span{font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.note{font-size:13px;color:var(--sub);max-width:72ch}
+.busy{color:var(--acc);font-weight:700}
+.filebtn{position:relative;overflow:hidden;display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--bg)}
+.filebtn.pri{background:var(--acc);color:var(--onacc);border-color:var(--acc);font-weight:700}
+[hidden]{display:none!important}
+.filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+/* 試験選択 */
+.sel{border:1px solid var(--line);border-radius:10px;background:var(--pane);padding:clamp(14px,2.4vw,24px)}
+.sel h2{margin:0 0 10px}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:8px}
+.sgrid button{text-align:left;white-space:normal;line-height:1.35;padding:8px 12px;min-height:52px}
+.sgrid button.on{background:var(--acc);color:var(--onacc);border-color:var(--acc);font-weight:700}
+.sgl{font-size:13px;color:var(--sub);margin:14px 0 6px}
+#own{min-height:180px}
+.tmin{display:flex;align-items:center;gap:8px}.tmin input{width:6.5em;text-align:right}
+/* ===== 試験画面 ===== */
+.ex{--z:1;font-size:calc(15px*var(--z));height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.ex button{font-size:1em;min-height:2.6em;padding:0 .75em}
+.tb{display:flex;align-items:center;gap:.4em;padding:.35em .6em;background:var(--bar);border-bottom:1px solid var(--line);flex:none}
+.tbs{display:flex;align-items:center;gap:.3em;overflow-x:auto;flex:1;scrollbar-width:thin}
+.tbs .g{display:flex;gap:.3em;padding-right:.5em;margin-right:.2em;border-right:1px solid var(--line);flex:none}
+.tbs .g:last-child{border-right:0}
+.tb button.on{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+.tb .time{display:flex;flex-direction:column;align-items:flex-end;line-height:1.1;flex:none}
+.tb .time small{font-size:.75em;color:var(--sub)}
+.tb .time b{font:700 1.35em/1 "BIZ UDGothic",monospace;font-variant-numeric:tabular-nums}
+.tb .time.low b{color:var(--warn)}
+.tb .end{flex:none;background:var(--hd);color:#fff;border-color:var(--hd);font-weight:700}
+.menu{position:fixed;z-index:40;background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0003;padding:6px;display:none;flex-direction:column;gap:4px;min-width:9em}
+.menu.on{display:flex}.menu button{text-align:left}.menu button.on{font-weight:700;border-color:var(--acc)}
+.panes{flex:1;display:grid;min-height:0;position:relative}
+.pa{display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden;background:var(--bg)}
+.pa[hidden]{display:none}
+.gut{background:var(--line);cursor:col-resize;width:6px;touch-action:none}
+.gut:hover,.gut.drag{background:var(--acc)}
+.ph{display:flex;align-items:center;gap:.4em;padding:.3em .5em;background:var(--pane);border-bottom:1px solid var(--line);flex-wrap:wrap;flex:none}
+.ph .t{font-weight:700;padding:0 .3em}
+.ph .sp{flex:1}
+.stat{font-size:.9em;color:var(--sub);white-space:nowrap}.stat b{color:var(--ink);font-variant-numeric:tabular-nums}.stat .full{color:var(--warn)}
+/* 問題エリア */
+.pbody{flex:1;display:flex;min-height:0}
+.ptools{display:flex;flex-direction:column;gap:.3em;padding:.4em;background:var(--pane);border-right:1px solid var(--line);overflow-y:auto;flex:none;width:5.2em}
+.ptools button{padding:0 .2em;font-size:.85em;min-height:3em;white-space:normal;line-height:1.15}
+.ptools button.on{background:var(--acc);color:var(--onacc);border-color:var(--acc)}
+.pgno{display:flex;flex-direction:column;align-items:center;gap:.2em;font-size:.85em}
+.pgno input{width:3.2em;min-height:2.2em;padding:0 .2em;text-align:center;font-size:1em}
+.pmain{flex:1;display:flex;flex-direction:column;min-width:0}
+.sub{display:none;gap:.35em;align-items:center;padding:.35em .5em;border-bottom:1px solid var(--line);flex-wrap:wrap;background:var(--bg)}
+.sub.on{display:flex}
+.sw{width:2.6em;padding:0;border-width:2px}.sw i{display:block;width:1.5em;height:1em;margin:auto;border-radius:3px}
+.sw.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--bg) inset}
+.sub .on:not(.sw){background:var(--ink);color:var(--bg)}
+.pview{flex:1;overflow:auto;background:light-dark(#d9dfdf,#0f1415);position:relative}
+.pview.hand{cursor:grab}.pview.hand.drag{cursor:grabbing}
+.psz{position:relative;margin:0 auto}
+.paper{position:absolute;left:0;top:0;width:680px;background:#fff;color:#111;transform-origin:0 0;box-shadow:0 2px 10px #0002}
+.ptext{padding:40px 46px 60px;font:16px/2 "BIZ UDPMincho","Hiragino Mincho ProN","Yu Mincho",serif;white-space:pre-wrap;user-select:none;-webkit-user-select:none}
+#pcv{position:absolute;left:0;top:0;pointer-events:none}
+.paper.draw #pcv{pointer-events:auto;touch-action:none;cursor:crosshair}
+.paper.texting{cursor:text}
+.pnote{position:absolute;min-width:110px;border-radius:3px;box-shadow:0 1px 4px #0003;font:14px/1.5 "BIZ UDPGothic",sans-serif;color:#111}
+.pnote .gr{height:9px;cursor:move;background:#0001;touch-action:none}
+.pnote .tx{padding:3px 6px;outline:none;min-height:1.6em;white-space:pre-wrap}
+.paper.erasing .pnote{outline:2px dashed var(--warn);cursor:pointer}
+/* 答案エリア */
+.abody{flex:1;overflow:auto;scrollbar-gutter:stable;padding:.6em;display:flex;flex-direction:column;align-items:center}
+.findbar{display:none;gap:.35em;align-items:center;padding:.35em .5em;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.findbar.on{display:flex}
+.findbar input{min-height:2.4em;font-size:16px;width:9em}
+.findbar .cnt{font-size:.9em;color:var(--sub);min-width:3.5em;text-align:center}
+#ans{--fs:17px;font-size:var(--fs);font-family:"BIZ UDGothic",monospace;line-height:1.75em;width:calc(30em + 22px);height:calc(1.75em * 23 + 2px);padding:0 10px;flex:none;
+border:1px solid var(--line);border-radius:3px;resize:none;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;color:var(--aink,var(--ink));
+background-color:var(--abg,var(--bg));background-image:repeating-linear-gradient(to bottom,transparent 0 calc(40.25em - 2px),var(--acc) calc(40.25em - 2px) 40.25em),repeating-linear-gradient(to bottom,transparent 0 calc(1.75em - 1px),var(--rule) calc(1.75em - 1px) 1.75em);background-attachment:local}
+.pages{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;justify-content:center}
+.pages span{width:26px;height:7px;border-radius:2px;background:var(--rule)}.pages span.u{background:var(--acc)}
+/* 法文エリア */
+.lbody{flex:1;display:flex;min-height:0;position:relative}
+.toc{width:12.5em;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;background:var(--pane)}
+.toc[hidden]{display:none}
+.toch{display:flex;gap:.3em;padding:.35em;border-bottom:1px solid var(--line)}
+.toch input{flex:1;min-height:2.4em;font-size:16px;width:0}
+.toc .list{flex:1;overflow:auto;padding:.3em 0 2em;font-size:.92em;line-height:1.45}
+.toc .grp{font-weight:700;color:var(--sub);padding:.6em .7em .2em;font-size:.88em}
+.toc .it{display:block;width:100%;text-align:left;border:0;border-radius:0;background:transparent;min-height:2.3em;padding:.2em .7em;white-space:normal;line-height:1.35}
+.toc .it:hover{background:var(--rule)}
+.toc .it.law{font-weight:700}.toc .it.cur{color:var(--acc)}
+.toc .it.hd2{padding-left:1.4em}.toc .it.hd3{padding-left:2.1em}.toc .it.hd4{padding-left:2.8em}.toc .it.hd5,.toc .it.hd6{padding-left:3.5em;font-size:.95em}
+.lawbox{flex:1;overflow:auto;position:relative;background:var(--abg,var(--bg));color:var(--aink,var(--ink))}
+.law{padding:.6em 1.3em 3em;font-family:"BIZ UDPMincho","Hiragino Mincho ProN","Yu Mincho",serif;line-height:1.9}
+.law .ttl{font:700 1.15em "BIZ UDPGothic",sans-serif;margin:.4em 0}
+.law .h{font-family:"BIZ UDPGothic",sans-serif;font-weight:700;margin:1.4em 0 .4em;color:var(--acc)}
+.art{padding:.45em 0 .45em 2em;border-bottom:1px dotted var(--line);position:relative}
+.art .an{font-family:"BIZ UDPGothic",sans-serif;font-weight:700}.art .cap{color:var(--sub);margin-left:.4em}
+.art p{margin:2px 0;padding-left:1em;text-indent:-1em}.art p:first-of-type{padding-left:0;text-indent:0}
+.bm{position:absolute;left:0;top:.35em;min-height:2em!important;width:1.8em;padding:0!important;border-color:transparent;background:transparent;color:var(--sub)}
+.bm.on{color:var(--warn)}
+.art.flash{animation:fl 1.6s}@keyframes fl{0%,40%{background:color-mix(in srgb,var(--acc) 22%,transparent)}100%{background:transparent}}
+mark.hit{background:var(--hit);color:inherit}mark.hit.cur{background:var(--hitc)}
+.src{font-size:.8em;color:var(--sub);padding:.4em 1.3em 0}
+.empty{padding:2em 1.3em;color:var(--sub)}
+.bmlist{position:absolute;inset:0;background:var(--bg);z-index:3;overflow:auto;padding:.6em}
+.bmlist .it{display:block;width:100%;text-align:left;margin-bottom:.4em;white-space:normal}
+/* 構成用紙 */
+.kosei{position:fixed;z-index:30;top:calc(3.6em*var(--z) + 4px);bottom:8px;right:8px;width:min(46vw,620px);background:var(--bg);border:1px solid var(--line);border-radius:8px;box-shadow:0 10px 30px #0004;display:none;flex-direction:column;overflow:hidden}
+.kosei.on{display:flex}.kosei.left{right:auto;left:8px}.kosei.full{left:8px;right:8px;width:auto}
+.kosei .ph{font-size:calc(15px*var(--z))}
+.kbody{flex:1;display:flex;flex-direction:column;min-height:0}
+.kdraw{flex:1;display:flex;min-height:0;border-bottom:1px solid var(--line)}
+.ktools{display:flex;flex-direction:column;gap:4px;padding:6px;background:var(--pane);border-right:1px solid var(--line)}
+.ktools button{min-height:36px;padding:0 8px;font-size:13px}.ktools button.on{background:var(--acc);color:var(--onacc)}
+.kcvw{flex:1;position:relative;background:#fff}
+#kcv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair}
+#kmemo{flex:1;border:0;padding:10px;resize:none;background:var(--bg);font-size:16px;border-radius:0}
+.filt{position:fixed;inset:0;pointer-events:none;z-index:50;mix-blend-mode:multiply;display:none}
+.ex.f-dark{filter:invert(.92) hue-rotate(180deg)}
+/* 結果・記録 */
+.score{font:700 clamp(40px,8vw,64px)/1 "BIZ UDGothic",monospace;margin:6px 0 4px}
+.score small{font-size:.35em;color:var(--sub);font-weight:400}
+.lvl{display:inline-block;padding:2px 12px;border-radius:999px;background:var(--acc);color:var(--onacc);font-weight:700;font-size:15px;vertical-align:middle}
+.bar{height:12px;border-radius:6px;background:var(--rule);overflow:hidden;margin:10px 0 20px}.bar i{display:block;height:100%;background:var(--acc)}
+.sheet{border:1px solid var(--line);border-radius:6px;padding:14px;white-space:pre-wrap;font-family:"BIZ UDGothic",monospace;font-size:15px;max-height:60vh;overflow:auto;background:var(--pane)}
+details{margin:14px 0}summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center}
+.grade{border-top:2px solid var(--acc);margin-top:28px;padding-top:6px}
+.cmp{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px;margin-top:14px}.cmp h3{margin:0 0 6px;font-size:16px}
+table{width:100%;border-collapse:collapse;margin:10px 0}th,td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}th{font-size:13px;color:var(--sub);font-weight:400}
+td.ev{font-size:20px;text-align:center;width:3em}
+ul.ls,ol.ls{margin:6px 0;padding-left:1.3em}ol.ls li{margin-bottom:6px}
+.files{font-size:14px;color:var(--sub)}
+.rk{display:flex;gap:18px;align-items:center;margin:10px 0 14px}
+.rkl{font:700 clamp(64px,14vw,96px)/1 "BIZ UDGothic",monospace;color:var(--acc);width:1.2em;text-align:center}
+.rkt{font-size:clamp(18px,3vw,22px);font-weight:700;margin-bottom:6px}
+.scale{position:relative;display:flex;gap:2px;margin:6px 0 4px}
+.scale span{background:var(--rule);text-align:center;font-size:13px;padding:4px 0;color:var(--sub)}
+.scale span.on{background:var(--acc);color:var(--onacc);font-weight:700}
+.scale i{position:absolute;top:-6px;bottom:-6px;width:3px;margin-left:-1px;background:var(--warn);border-radius:2px}
+.hist{display:grid;gap:10px}
+.hi{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 14px;text-align:left;white-space:normal;padding:14px;min-height:0;line-height:1.5}
+.hi b{font-size:16px}.hi small{color:var(--sub)}.hi .sc{grid-row:span 2;align-self:center;font:700 26px "BIZ UDGothic",monospace;color:var(--acc)}
+.hi .sc.no{font-size:13px;color:var(--sub);font-weight:400}
+.dlg{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:60;padding:16px}
+.dlg.on{display:flex}.dlg>div{background:var(--bg);border-radius:10px;padding:24px;max-width:440px;width:100%;max-height:86vh;overflow:auto}.dlg p{margin:0 0 18px}
+.help li{margin-bottom:6px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:70;max-width:90vw}
+.toast.on{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}.art.flash{animation:none;outline:2px solid var(--acc)}}
+@media (max-width:900px){
+ .panes{grid-template-columns:minmax(0,1fr)!important}.gut{display:none}
+ .toc{position:absolute;inset:0;width:auto;z-index:4}
+ .kosei,.kosei.left{left:6px;right:6px;width:auto}
+}
+@media (max-width:600px){.hd{gap:8px}.hd button{padding:0 10px}.hd b{font-size:15px}
+ table.stack thead{display:none}table.stack tr{display:grid;grid-template-columns:3em minmax(0,1fr);padding:8px 0;border-bottom:1px solid var(--line)}table.stack td{border:0;padding:2px 4px}table.stack td.ev{grid-row:span 2}
+ .ptools{width:4.4em}.ptext{padding:28px 30px 50px}}
+</style>
+</head>
+<body>
+
+<!-- ホーム（試験選択画面） -->
+<section class="view on" id="v-home">
+ <header class="hd"><b>司法試験等CBT 演習（論文式）</b><span class="sp"></span><button id="h-hist">答案の記録</button></header>
+ <div class="wrap">
+  <h1>試験選択</h1>
+  <p class="lead">司法試験の過去問だけでなく、予備試験・答練・模試・演習書の問題も解けます。解説を入れておくと、提出後に答案と並べて見比べ、自己採点できます。</p>
+  <div class="form">
+   <div class="sel">
+    <h2>1. 問題の種類</h2>
+    <div class="sgrid" id="kinds"></div>
+   </div>
+   <div class="sel">
+    <h2>2. 科目</h2>
+    <div id="sg-shihou"><div class="sgl">選択科目（1問 4頁まで）</div><div class="sgrid" id="sg-e"></div>
+    <div class="sgl">必須科目（1問 8頁まで）</div><div class="sgrid" id="sg-m"></div></div>
+    <div class="sgrid" id="sg-g" hidden></div>
+   </div>
+   <div class="sel form">
+    <h2 style="margin:0">3. 問題</h2>
+    <div class="row" id="yearrow">
+     <label class="fl"><span>年度</span><select id="year"></select></label>
+     <span class="note" id="yearhint" style="align-self:end"></span>
+    </div>
+    <label class="fl" id="ttlrow" hidden><span>タイトル（任意）</span><input type="text" id="ttl" placeholder="例：伊藤塾 答練 民法 第3回／事例研究 第5問"></label>
+    <div class="row" id="ocrrow"><label class="filebtn pri">問題文を写真・PDFから読み込む<input type="file" id="ocr" accept="image/*,application/pdf" multiple></label><button id="sample" hidden>サンプル問題を入れる</button><span id="ocrst" class="note"></span></div>
+    <label class="fl"><span>問題文</span><textarea class="box" id="own" placeholder="写真・PDFから読み込むか、問題文を貼り付け"></textarea></label>
+   </div>
+   <div class="sel form">
+    <h2 style="margin:0">4. 解説・出題趣旨・模範答案（任意）</h2>
+    <p class="note" style="margin:0">ここに入れた解説は、試験終了後に答案と並べて表示されます。写真は複数枚まとめて選べます（ページ順に選んでください）。</p>
+    <div class="row" id="kocrrow"><label class="filebtn">解説を写真・PDFから読み込む<input type="file" id="kocr" accept="image/*,application/pdf" multiple></label><span id="kst" class="note"></span></div>
+    <textarea class="box" id="kai" rows="6" placeholder="解説・出題趣旨・採点基準・模範答案などを貼り付け"></textarea>
+   </div>
+   <div class="sel">
+    <h2>5. 試験時間と答案の上限</h2>
+    <div class="row"><span class="tmin"><input type="number" id="tm" min="0" max="999" value="120" inputmode="numeric" aria-label="試験時間（分）">分</span>
+     <select id="pmax" aria-label="答案の上限"><option value="4">4頁（92行）まで</option><option value="8">8頁（184行）まで</option></select>
+     <span class="note">試験時間は0〜999分（0分は無制限）。</span></div>
+   </div>
+   <div class="row"><button class="pri" id="go" style="min-width:10em">開始</button><span id="saved" class="note"></span></div>
+  </div>
+  <p class="note" style="margin-top:26px">司法試験の過去問は、令和7年までの出題趣旨・採点実感の要約を内蔵しています。試験用法文はe-Gov法令検索のデータ（本則のみ）です。記録はこの端末のブラウザに保存されます。サンプル問題は演習用のオリジナルです。</p>
+ </div>
+</section>
+
+<!-- 試験画面 -->
+<section class="view" id="v-ron">
+ <div class="ex" id="ex">
+  <div class="tb">
+   <div class="tbs">
+    <div class="g"><button id="t-help">使い方</button><button id="t-zin">拡大</button><button id="t-zout">縮小</button><button id="t-filt">フィルタ</button><button id="t-col">配色</button></div>
+    <div class="g"><button id="t-copy">コピー</button><button id="t-cut">切取り</button><button id="t-paste">貼付け</button></div>
+    <div class="g"><button id="t-kosei">構成用紙</button></div>
+    <div class="g"><button data-pane="prob" class="on">問題</button><button data-pane="ans" class="on">答案</button><button data-pane="law" class="on">法文</button><button id="t-swap">入替え</button></div>
+   </div>
+   <div class="time" id="t-time"><small>残り時間</small><b id="r-timer">--:--:--</b></div>
+   <button class="end" id="r-end">終了</button>
+  </div>
+  <div class="panes" id="panes">
+   <!-- 問題エリア -->
+   <div class="pa" id="pa-prob">
+    <div class="ph"><span class="t" id="r-title">問題</span></div>
+    <div class="pbody">
+     <div class="ptools" id="ptools">
+      <button data-tool="hand" class="on">ハンド</button>
+      <button data-tool="pen">ペン</button>
+      <button data-tool="mk">マーカー</button>
+      <button data-tool="text">テキスト</button>
+      <button data-tool="erase">消しゴム</button>
+      <button id="p-zin" aria-label="問題を拡大">＋</button>
+      <button id="p-zout" aria-label="問題を縮小">－</button>
+      <button id="p-fit">幅に<br>合わせる</button>
+      <div class="pgno"><input id="p-pg" type="text" inputmode="numeric" value="1" aria-label="頁"><span id="p-pgs">/ 1</span></div>
+      <button id="p-prev" aria-label="前の頁">＜</button>
+      <button id="p-next" aria-label="次の頁">＞</button>
+     </div>
+     <div class="pmain">
+      <div class="sub" id="sub-pen"><span class="note">ペン</span><button class="sw" data-c="#111"><i style="background:#111"></i></button><button class="sw" data-c="#e02424"><i style="background:#e02424"></i></button><button class="sw" data-c="#1d5fd6"><i style="background:#1d5fd6"></i></button><button class="hz">水平モード</button></div>
+      <div class="sub" id="sub-mk"><span class="note">マーカー</span><button class="sw" data-c="#ff9a2e"><i style="background:#ff9a2e"></i></button><button class="sw" data-c="#ffe94d"><i style="background:#ffe94d"></i></button><button class="sw" data-c="#7ee07e"><i style="background:#7ee07e"></i></button><button class="sw" data-c="#7cc4ff"><i style="background:#7cc4ff"></i></button><button class="sw" data-c="#ff7a8a"><i style="background:#ff7a8a"></i></button><button class="hz">水平モード</button></div>
+      <div class="sub" id="sub-text"><span class="note">テキスト（紙面をタップして入力）</span><button class="sw" data-c="#ffd8a8"><i style="background:#ffd8a8"></i></button><button class="sw" data-c="#fff3a0"><i style="background:#fff3a0"></i></button><button class="sw" data-c="#c8f0c8"><i style="background:#c8f0c8"></i></button><button class="sw" data-c="#cfe8ff"><i style="background:#cfe8ff"></i></button><button class="sw" data-c="#ffd0d6"><i style="background:#ffd0d6"></i></button></div>
+      <div class="sub" id="sub-erase"><span class="note">消しゴム</span><button data-es="28">大</button><button data-es="14">中</button><button data-es="6">小</button><button id="p-clr">書き込みを全部消す</button></div>
+      <div class="pview hand" id="pview"><div class="psz" id="psz"><div class="paper" id="paper"><div class="ptext" id="r-prob"></div><canvas id="pcv"></canvas><div id="pnotes"></div></div></div></div>
+     </div>
+    </div>
+   </div>
+   <div class="gut" data-g="0"></div>
+   <!-- 答案作成エリア -->
+   <div class="pa" id="pa-ans">
+    <div class="ph"><span class="t">解答</span><span class="stat">文字数 <b id="s-ch">0</b>　行数 <b id="s-lines">0</b>/<span id="s-maxl">184</span>　<b id="s-pg">1</b>頁 <b id="s-ln">1</b>行目</span><span class="sp"></span><button id="a-find">検索</button><button id="a-undo">元に戻す</button><button id="a-redo">やり直す</button></div>
+    <div class="findbar" id="findbar"><input type="search" id="f-q" placeholder="検索" aria-label="検索語"><span class="cnt" id="f-cnt">0/0</span><button id="f-up" aria-label="前へ">⋀</button><button id="f-dn" aria-label="次へ">⋁</button><input type="text" id="f-r" placeholder="置換後" aria-label="置換後の語"><button id="f-rep">置換</button><button id="f-all">一括</button><button id="f-x" aria-label="閉じる">×</button></div>
+    <div class="abody" id="abody"><textarea id="ans" spellcheck="false" aria-label="答案入力欄" placeholder="ここに答案を入力"></textarea><div class="pages" id="s-pages"></div></div>
+   </div>
+   <div class="gut" data-g="1"></div>
+   <!-- 試験用法文エリア -->
+   <div class="pa" id="pa-law">
+    <div class="ph"><button id="l-toc" class="on">目次</button><span class="t" id="l-name">試験用法文</span><span class="sp"></span><button id="l-find">検索</button><button id="l-bml">ブックマーク一覧</button></div>
+    <div class="findbar" id="lfind"><input type="search" id="lq" placeholder="語句か条番号（709、96の2）" aria-label="法文を検索" enterkeyhint="search"><span class="cnt" id="l-cnt">0/0</span><button id="l-up" aria-label="前へ">⋀</button><button id="l-dn" aria-label="次へ">⋁</button><button id="l-x" aria-label="閉じる">×</button></div>
+    <div class="lbody">
+     <div class="toc" id="toc"><div class="toch"><input type="search" id="tocq" placeholder="目次を検索" aria-label="目次を検索"><button id="toc-x" aria-label="目次を閉じる">＜</button></div><div class="list" id="toclist"></div></div>
+     <div class="lawbox" id="lawbox"><div class="empty">目次から法令を選んでください。</div></div>
+    </div>
+   </div>
+  </div>
+  <!-- 構成用紙 -->
+  <div class="kosei" id="kosei">
+   <div class="ph"><span class="t">構成用紙</span><span class="sp"></span><button data-kp="left">左配置</button><button data-kp="full">全画面</button><button data-kp="right" class="on">右配置</button><button id="k-x">閉じる</button></div>
+   <div class="kbody">
+    <div class="kdraw"><div class="ktools" id="ktools"><button data-kt="pen" data-c="#111" class="on">黒</button><button data-kt="pen" data-c="#e02424">赤</button><button data-kt="pen" data-c="#1d5fd6">青</button><button data-kt="erase">消しゴム</button><button id="k-clr">全消去</button></div><div class="kcvw" id="kcvw"><canvas id="kcv"></canvas></div></div>
+    <textarea id="kmemo" placeholder="構成メモ（テキスト入力）" aria-label="構成用紙のテキスト"></textarea>
+   </div>
+  </div>
+  <div class="filt" id="filt"></div>
+ </div>
+ <div class="menu" id="m-filt"><button data-f="">なし</button><button data-f="yellow">黄色</button><button data-f="cyan">水色</button><button data-f="dark">黒色</button></div>
+ <div class="menu" id="m-col"><button data-cl="">なし</button><button data-cl="y">黄背景</button><button data-cl="b">青背景</button><button data-cl="k">黒背景</button></div>
+</section>
+
+<section class="view" id="v-rec">
+ <header class="hd"><button id="rec-back">← 戻る</button><b id="rec-title">答案</b><span class="sp"></span></header>
+ <div class="wrap" id="rec-body"></div>
+</section>
+
+<section class="view" id="v-hist">
+ <header class="hd"><button class="go-home">← 試験選択</button><b>答案の記録</b><span class="sp"></span></header>
+ <div class="wrap"><div class="row" style="margin-bottom:10px"><button id="x-out">記録を書き出す</button><label class="filebtn">記録を読み込む<input type="file" id="x-in" accept="application/json,.json"></label></div><p class="note" id="hist-src"></p><div class="hist" id="hist"></div></div>
+</section>
+
+<div class="dlg" id="dlg"><div><p id="dlg-msg"></p><div class="row"><button class="pri" id="dlg-ok">はい</button><button id="dlg-no">いいえ</button></div></div></div>
+<div class="dlg" id="help"><div><h2 style="margin-top:0">使い方</h2><ul class="help">
+ <li><b>問題エリア</b>：左のツールで、ハンド（ドラッグでスクロール）、ペン（黒・赤・青）、マーカー（橙・黄・緑・青・赤）、テキスト（付箋の書き込み）、消しゴム（大・中・小）。「水平モード」で真っすぐ線が引けます。＋／－と「幅に合わせる」で倍率、＜ ＞で頁送り。問題文はコピーできません。</li>
+ <li><b>答案作成エリア</b>：1頁23行×30字。上部に文字数・行数・頁。「検索」で検索・置換・一括置換。「元に戻す」は10回まで（Ctrl+Z）。</li>
+ <li><b>試験用法文エリア</b>：「目次」から法令・編章節を選択。「検索」で語句を色付け表示し⋀⋁で移動（条番号を入れるとその条へ）。条文左の☆でブックマーク。</li>
+ <li><b>構成用紙</b>：上は手書き、下はテキスト。左配置・全画面・右配置。閉じても内容は残ります。</li>
+ <li><b>表示</b>：「問題」「答案」「法文」で各エリアの表示・非表示、「入替え」で位置の入替え、境界のドラッグで幅を調整。「拡大」「縮小」、「フィルタ」（画面全体の色）、「配色」（答案・法文の背景色）。</li>
+ <li><b>コピー・切取り・貼付け</b>：答案・法文・構成用紙の選択範囲が対象です。</li>
+ <li><b>終了</b>：答案を提出して記録に保存し、解説と見比べる自己採点の画面へ進みます。残り時間が0になると自動で終了します。</li>
+</ul><div class="row"><button class="pri" id="help-x">閉じる</button></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let tt;const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2400)};
+const show=id=>{document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===id));scrollTo(0,0)};
+const fmtD=t=>{const d=new Date(t);return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`};
+const KD='〇一二三四五六七八九';
+function kan(n){if(!n)return '';let s='';for(const[v,c]of [[1000,'千'],[100,'百'],[10,'十']]){const d=Math.floor(n/v);if(d){s+=(d>1?KD[d]:'')+c;n%=v}}return s+(n?KD[n]:'')}
+const z2h=s=>s.replace(/[０-９]/g,c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0));
+let dlgCb=null;
+function ask(msg,ok,cb){$('#dlg-msg').textContent=msg;$('#dlg-ok').textContent=ok;dlgCb=cb;$('#dlg').classList.add('on');$('#dlg-ok').focus()}
+$('#dlg-no').onclick=()=>$('#dlg').classList.remove('on');
+$('#dlg-ok').onclick=()=>{$('#dlg').classList.remove('on');dlgCb&&dlgCb()};
+document.querySelectorAll('.go-home').forEach(b=>b.onclick=()=>{updSaved();show('v-home')});
+
+/* ---------- 記録（この端末のブラウザに保存） ---------- */
+const capP=Promise.resolve({});
+const LKEY='cbt-recs';
+const localRecs=()=>{try{return JSON.parse(store.get(LKEY)||'[]')}catch(e){return []}};
+function putRecs(a){try{localStorage.setItem(LKEY,JSON.stringify(a));return true}catch(e){toast('保存容量がいっぱいです。古い記録を削除するか、書き出してから削除してください');return false}}
+async function saveRec(r){const a=localRecs().filter(x=>x.id!==r.id);a.unshift(r);return putRecs(a.slice(0,500))}
+async function listRecs(){return {a:localRecs().sort((x,y)=>y.at-x.at),synced:false}}
+async function delRec(id){putRecs(localRecs().filter(x=>x.id!==id))}
+
+/* ---------- PDF（文字入りPDFの読み込み） ---------- */
+let pdfP=null;
+const loadScript=src=>new Promise((ok,ng)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=ng;document.head.appendChild(s)});
+async function openPdf(file){
+ if(!pdfP){const B='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';pdfP=loadScript(B+'pdf.min.js').then(()=>loadScript(B+'pdf.worker.min.js')).then(()=>{window.pdfjsLib.GlobalWorkerOptions.workerSrc=B+'pdf.worker.min.js'})}
+ await pdfP;return window.pdfjsLib.getDocument({data:await file.arrayBuffer(),CMapReaderFactory:CMapF,useWorkerFetch:false}).promise}
+let cmapP=null;const loadCmaps=()=>cmapP||(cmapP=fetch('cmaps.json').then(r=>r.json()).catch(()=>({})));
+class CMapF{constructor(){}async fetch({name}){const m=await loadCmaps();const b=m[name];if(!b)throw new Error('CMap '+name+' がありません');
+ const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return {cMapData:u,compressionType:1}}}
+async function pdfText(pdf){let t='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();let line='';
+ for(const it of c.items){line+=it.str;if(it.hasEOL){t+=line+'\n';line=''}}t+=line+'\n'}return t.replace(/\n{3,}/g,'\n\n').trim()}
+/* 写真の文字読み取り（ブラウザ内OCR：Tesseract.js） */
+let tessP=null;
+const loadTess=()=>tessP||(tessP=loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'));
+async function imgToCanvas(src){const img=await new Promise((ok,ng)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ng;i.src=src});
+ const k=Math.min(2.2,2600/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
+ const x=cv.getContext('2d');x.filter='grayscale(1) contrast(1.25)';x.drawImage(img,0,0,cv.width,cv.height);return cv}
+async function pdfCanvases(pdf,max){const out=[];for(let i=1;i<=Math.min(pdf.numPages,max);i++){const pg=await pdf.getPage(i);const v0=pg.getViewport({scale:1});
+ const vp=pg.getViewport({scale:Math.min(3,2600/Math.max(v0.width,v0.height))});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+ const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:cx,viewport:vp}).promise;out.push(cv)}return out}
+const tidyJa=t=>t.replace(/\r/g,'').replace(/([^\x00-\x7F]) +(?=[^\x00-\x7F])/g,'$1').replace(/([^\x00-\x7F]) +(?=[0-9A-Za-z])/g,'$1').replace(/([0-9A-Za-z]) +(?=[^\x00-\x7F])/g,'$1').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+async function ocrCanvases(cvs,prog){await loadTess();const w=await window.Tesseract.createWorker('jpn',1,{logger:m=>{if(m.status==='recognizing text')prog(m.progress)}});
+ try{let out='';for(let i=0;i<cvs.length;i++){prog(0,i+1,cvs.length);const r=await w.recognize(cvs[i]);out+=(out?'\n\n':'')+tidyJa(r.data.text||'')}return out}finally{await w.terminate()}}
+async function filesToMaterial(files,_max,st){let text='';const cvs=[];
+ for(const f of files){
+  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){const pdf=await openPdf(f);let t='';try{t=await pdfText(pdf)}catch(e){}
+   const jp=(t.match(/[぀-ヿ一-鿿]/g)||[]).length;
+   if(jp>pdf.numPages*40)text+=(text?'\n\n':'')+t;else cvs.push(...await pdfCanvases(pdf,20))}
+  else if(f.type.startsWith('image/')||/\.(jpe?g|png|heic|webp)$/i.test(f.name)){const u=URL.createObjectURL(f);try{cvs.push(await imgToCanvas(u))}catch(e){throw {code:'img'}}finally{URL.revokeObjectURL(u)}}}
+ if(cvs.length){let page=1,tot=cvs.length;const t=await ocrCanvases(cvs,(p,i,n)=>{if(i){page=i;tot=n}if(st)st.textContent=`文字を読み取り中… ${page}/${tot}枚 ${Math.round((p||0)*100)}%`});text+=(text?'\n\n':'')+t}
+ if(!text.trim())throw {code:'empty'};
+ return {imgs:[],text,cut:false}}
+const errMsg=e=>e&&e.code==='img'?'この写真の形式は読み込めません（HEICなら、iPhoneの設定→カメラ→フォーマットを「互換性優先」にするか、スクショにして選んでください）':e&&e.code==='empty'?'文字が見つかりませんでした。明るく、まっすぐ撮った写真でお試しください':'読み込めませんでした。通信状態を確認するか、文章を貼り付けてください';
+async function readPdfInto(files,ta,st,key){st.className='note busy';st.textContent='読み込み中…（初回は読み取り用データの取得に少し時間がかかります）';
+ try{const {text}=await filesToMaterial(files,20,st);const cur=ta.value.trim();ta.value=cur?cur+'\n\n'+text:text;store.set(key,ta.value);st.className='note';st.textContent='読み込みました。自動の読み取りなので、誤字や改行の崩れを確認して直してください。'}
+ catch(e){st.className='note';st.textContent=errMsg(e)}}
+$('#ocr').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)readPdfInto(f,$('#own'),$('#ocrst'),ownKey())};
+
+/* ---------- 内蔵資料（評価基準・出題趣旨の要約） ---------- */
+let critP=null;const loadCrit=()=>critP||(critP=fetch('criteria.json').then(r=>r.json()).catch(()=>null));
+const RANKS=[['A','1000位まで'],['B','1500位まで'],['C','2000位まで'],['D','2500位まで'],['E','3000位まで'],['F','それ以下']];
+const LVS=['優秀','良好','一応の水準','不良'];
+
+/* ---------- 答案の詳細と自己採点 ---------- */
+function openRec(rec,from){
+ $('#rec-title').textContent=rec.title;$('#rec-back').dataset.to=from;const sg=rec.self||{};
+ $('#rec-body').innerHTML=`<p class="note">${fmtD(rec.at)}提出・${rec.minutes?esc(rec.minutes)+'分中':''}${Math.round((rec.used||0)/60)}分使用</p>
+ <div class="score">${(rec.chars||0).toLocaleString()}<small> 字・${rec.lines}行（${rec.pages}頁）</small></div>
+ <div class="bar"><i style="width:${Math.min(100,rec.lines/(rec.maxl||184)*100)}%"></i></div>
+ <div class="row"><button id="rc-copy">答案をコピー</button><button id="rc-again">この問題をもう一度解く</button><button id="rc-del">記録を削除</button></div>
+ <div class="cmp">
+  <div><h3>答案</h3><div class="sheet">${esc(rec.answer)||'（未入力）'}</div></div>
+  <div><h3>解説・出題趣旨</h3><div class="sheet" id="rc-ref">${rec.crit?esc(rec.crit):'<span class="note">解説は入力されていません。</span>'}</div><div id="rc-builtin"></div></div>
+ </div>
+ <details><summary>問題文</summary><div class="sheet">${esc(rec.problem)}</div></details>
+ ${rec.memo?`<details><summary>構成メモ</summary><div class="sheet">${esc(rec.memo)}</div></details>`:''}
+ <section class="grade"><h2>自己採点</h2>
+  <p class="note" style="margin:0 0 8px">解説と見比べて付けてください。ランクは本番の順位の目安：${RANKS.map(r=>r[0]+' '+r[1]).join('／')}</p>
+  <div class="row" id="sr">${RANKS.map(([r])=>`<button data-r="${r}" class="${sg.rank===r?'pri':''}" style="min-width:3em;font-weight:700">${r}</button>`).join('')}</div>
+  <div class="row" style="margin-top:10px" id="sl">${LVS.map(l=>`<button data-l="${l}" class="${sg.level===l?'pri':''}">${l}</button>`).join('')}</div>
+  <label class="fl" style="margin-top:12px"><span>反省・次に直す点</span><textarea class="box" id="s-note" rows="4" placeholder="落とした論点、あてはめの薄さ、時間配分など">${esc(sg.note||'')}</textarea></label>
+  <div class="row" style="margin-top:10px"><button class="pri" id="s-save">自己採点を保存</button></div>
+ </section>`;
+ loadCrit().then(C=>{if(!C||!(rec.kind==='shihou'||!rec.kind)||!rec.subj)return;const y=rec.year,yr=y&&C.years[rec.subj]&&C.years[rec.subj][y];
+  $('#rc-builtin').innerHTML=(yr?`<details open><summary>内蔵：${esc(rec.subj)} ${esc(y)}年の出題趣旨・採点実感（要約）</summary><div class="sheet">${esc(yr)}</div></details>`:'')+
+   (C.tend[rec.subj]?`<details><summary>内蔵：${esc(rec.subj)}の採点実感の傾向</summary><div class="sheet">${esc(C.tend[rec.subj])}</div></details>`:'')+
+   `<details><summary>内蔵：評価基準（4段階・配点）と共通の指摘</summary><div class="sheet">${esc(C.common)}</div></details>`});
+ const pick=(id,attr)=>$(id).onclick=e=>{const b=e.target.closest('button');if(!b)return;$(id).querySelectorAll('button').forEach(x=>x.classList.toggle('pri',x===b))};
+ pick('#sr');pick('#sl');
+ $('#s-save').onclick=async()=>{const r=$('#sr .pri'),l=$('#sl .pri');rec.self={rank:r?r.dataset.r:'',level:l?l.dataset.l:'',note:$('#s-note').value,at:Date.now()};if(await saveRec(rec))toast('保存しました')};
+ $('#rc-copy').onclick=async()=>{try{await navigator.clipboard.writeText(rec.answer);toast('コピーしました')}catch(e){toast('コピーできませんでした')}};
+ $('#rc-again').onclick=()=>loadToHome(rec);
+ $('#rc-del').onclick=()=>ask('この答案の記録を削除します。元に戻せません。','削除する',async()=>{await delRec(rec.id);toast('削除しました');openHist()});
+ show('v-rec');
+}
+$('#rec-back').onclick=()=>{$('#rec-back').dataset.to==='hist'?openHist():(updSaved(),show('v-home'))};
+let HIST=[];
+async function openHist(){
+ show('v-hist');const {a}=await listRecs();HIST=a;
+ $('#hist-src').textContent=`${a.length}件・この端末のブラウザに保存。別の端末に移すときは「書き出す」で保存したファイルを、移した先で「読み込む」。`;
+ $('#hist').innerHTML=a.map((r,i)=>`<button class="hi" data-i="${i}"><b>${esc(r.title)}</b><span class="sc ${r.self&&r.self.rank?'':'no'}">${r.self&&r.self.rank?esc(r.self.rank):'未採点'}</span><small>${fmtD(r.at)}・${(r.chars||0).toLocaleString()}字${r.self&&r.self.level?'・'+esc(r.self.level):''}</small></button>`).join('')||'<p class="note">まだ記録はありません。試験を終了すると自動で記録されます。</p>';
+}
+$('#hist').onclick=e=>{const b=e.target.closest('.hi');if(b)openRec(HIST[+b.dataset.i],'hist')};
+$('#h-hist').onclick=openHist;
+$('#x-out').onclick=()=>{const blob=new Blob([JSON.stringify({app:'cbt-ronbun',v:1,at:Date.now(),records:localRecs()},null,1)],{type:'application/json'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);const d=new Date();a.download=`cbt-records-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)};
+$('#x-in').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ try{const j=JSON.parse(await f.text());const rs=Array.isArray(j)?j:j.records;if(!Array.isArray(rs))throw 0;
+  const cur=localRecs(),ids=new Set(cur.map(x=>x.id));let n=0;
+  for(const r of rs){if(r&&typeof r==='object'&&typeof r.id==='string'&&typeof r.answer==='string'&&!ids.has(r.id)){cur.push({...r,title:String(r.title||''),problem:String(r.problem||'')});n++}}
+  if(putRecs(cur.sort((x,y)=>y.at-x.at)))toast(n+'件を読み込みました');openHist()}catch(err){toast('記録ファイルを読み込めませんでした')}};
+
+/* ---------- サンプル問題 ---------- */
+const RQ={
+ civ:{t:'サンプル 民事系（民法）',law:'minpo',p:`【事例】
+ Aは、自己の所有する絵画甲（時価200万円）を、Bに対して150万円で売却する契約を令和8年4月1日に締結し、同日、Bから代金全額を受け取った。甲の引渡しは、同月10日にA宅で行うこととされた。
+ ところが、Aは、同月5日、甲を高値で買いたいと申し出たCに対し、甲を180万円で売却し、即日Cに引き渡した。Cは、AB間の売買契約が締結されていたことを知っていたが、Bが代金を既に支払っていることは知らなかった。
+
+〔設問1〕
+ Bは、Cに対し、甲の引渡しを請求することができるか。予想されるCの反論を踏まえて論じなさい。
+
+〔設問2〕
+ Bが甲の取得を断念した場合、BはAに対してどのような請求をすることができるか。その根拠及び請求の内容を論じなさい。
+
+（演習用のオリジナル問題です。）`},
+ crim:{t:'サンプル 刑事系（刑法）',law:'keiho',p:`【事例】
+ 甲（30歳）は、深夜、帰宅途中の路上で、酒に酔った乙（25歳）から一方的に因縁をつけられ、顔面を手拳で1回殴打された。乙がさらに殴りかかってきたため、甲は、身を守ろうとして、所持していた傘で乙の胸部を1回強く突いたところ、乙は路上に転倒して動かなくなった。
+ 甲は、乙がもはや攻撃できる状態にないことを認識しながら、なお怒りが収まらず、倒れている乙の腹部を数回足で蹴った。
+ 乙は、加療約1か月を要する肋骨骨折の傷害を負ったが、この傷害が、傘による突きと足蹴りのいずれによって生じたものかは明らかでない。
+
+〔設問〕
+ 甲の罪責について、具体的な事実を摘示しつつ論じなさい（特別法違反の点を除く。）。
+
+（演習用のオリジナル問題です。）`}
+};
+
+
+
+/* ---------- 試験選択 ---------- */
+const EXAMS=[
+ {k:'tosan',n:'倒産法',s:'倒産法',e:1},{k:'sozei',n:'租税法',s:'租税法',e:1},{k:'keizai',n:'経済法',s:'経済法',e:1},{k:'chizai',n:'知的財産法',s:'知的財産法',e:1},
+ {k:'rodo',n:'労働法',s:'労働法',e:1},{k:'kankyo',n:'環境法',s:'環境法',e:1},{k:'kokko',n:'国際関係法（公法系）',s:'国際関係法（公法系）',e:1},{k:'kokushi',n:'国際関係法（私法系）',s:'国際関係法（私法系）',e:1},
+ {k:'ko1',n:'公法系科目第１問',s:'憲法',law:'kenpo'},{k:'ko2',n:'公法系科目第２問',s:'行政法',law:'gyoso'},
+ {k:'min1',n:'民事系科目第１問',s:'民法',law:'minpo',smp:'civ'},{k:'min2',n:'民事系科目第２問',s:'商法',law:'kaisha'},{k:'min3',n:'民事系科目第３問',s:'民事訴訟法',law:'minso'},
+ {k:'kei1',n:'刑事系科目第１問',s:'刑法',law:'keiho',smp:'crim'},{k:'kei2',n:'刑事系科目第２問',s:'刑事訴訟法',law:'keiso'}];
+const GEN=[{k:'g-kenpo',n:'憲法',s:'憲法',law:'kenpo'},{k:'g-gyosei',n:'行政法',s:'行政法',law:'gyoso'},{k:'g-minpo',n:'民法',s:'民法',law:'minpo',smp:'civ'},{k:'g-shoho',n:'商法・会社法',s:'商法',law:'kaisha'},
+ {k:'g-minso',n:'民事訴訟法',s:'民事訴訟法',law:'minso'},{k:'g-keiho',n:'刑法',s:'刑法',law:'keiho',smp:'crim'},{k:'g-keiso',n:'刑事訴訟法',s:'刑事訴訟法',law:'keiso'},
+ {k:'g-minji',n:'民事実務基礎',s:'民事実務基礎',law:'minso'},{k:'g-keiji',n:'刑事実務基礎',s:'刑事実務基礎',law:'keiso'},
+ ...EXAMS.filter(x=>x.e).map(x=>({...x,k:'g-'+x.k})),{k:'g-other',n:'その他',s:'その他'}];
+const KINDS=[{k:'shihou',n:'司法試験',d:'過去問・同じ形式の問題'},{k:'yobi',n:'予備試験',d:'過去問・同じ形式の問題'},{k:'toren',n:'答練・模試',d:'予備校・大学の答練、模試'},{k:'other',n:'演習書・その他',d:'演習書、ロースクールの課題など'}];
+let KIND=KINDS.find(x=>x.k===store.get('cbt-kind'))?store.get('cbt-kind'):'shihou';
+const list=()=>KIND==='shihou'?EXAMS:GEN;
+let EX=list().find(x=>x.k===store.get('cbt-exam-'+KIND))||list().find(x=>/min1|g-minpo/.test(x.k));
+const btn=x=>`<button data-k="${x.k}">${esc(x.n)}${KIND==='shihou'?`<br><small>${x.e?'4頁':'8頁'}</small>`:''}</button>`;
+$('#kinds').innerHTML=KINDS.map(x=>`<button data-kind="${x.k}">${esc(x.n)}<br><small>${esc(x.d)}</small></button>`).join('');
+const YEARS=[['','指定なし']];for(let y=2026;y>=2006;y--)YEARS.push([String(y),(y>=2019?(y===2019?'令和元年':'令和'+(y-2018)+'年'):'平成'+(y-1988)+'年')+`（${y}）`]);
+$('#year').innerHTML=YEARS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+$('#year').value=store.get('cbt-year')||'';
+const KEY=()=>KIND+'-'+EX.k;
+const ownKey=()=>'cbt-own-'+KEY();
+const kaiKey=()=>'cbt-kai-'+KEY();
+function renderGrids(){
+ $('#sg-shihou').hidden=KIND!=='shihou';$('#sg-g').hidden=KIND==='shihou';
+ if(KIND==='shihou'){$('#sg-e').innerHTML=EXAMS.filter(x=>x.e).map(btn).join('');$('#sg-m').innerHTML=EXAMS.filter(x=>!x.e).map(btn).join('')}
+ else $('#sg-g').innerHTML=GEN.map(btn).join('')}
+function syncHome(){
+ document.querySelectorAll('#kinds button').forEach(b=>b.classList.toggle('on',b.dataset.kind===KIND));
+ document.querySelectorAll('#sg-e button,#sg-m button,#sg-g button').forEach(b=>b.classList.toggle('on',b.dataset.k===EX.k));
+ $('#yearrow').hidden=KIND!=='shihou';$('#ttlrow').hidden=KIND==='shihou';
+ $('#own').value=store.get(ownKey())||'';$('#kai').value=store.get(kaiKey())||'';$('#ttl').value=store.get('cbt-ttl-'+KEY())||'';
+ $('#sample').hidden=!EX.smp;$('#pmax').value=store.get('cbt-pmax-'+KEY())||(EX.e?'4':'8');
+ const y=$('#year').value;loadCrit().then(C=>{const has=C&&y&&C.years[EX.s]&&C.years[EX.s][y];$('#yearhint').textContent=KIND==='shihou'&&y?(has?`採点に${EX.s} ${y}年の出題趣旨（要約）を使います`:`この年度の出題趣旨は内蔵していません。4.に解説を入れてください`):''});
+ updSaved()}
+$('#kinds').onclick=e=>{const b=e.target.closest('button');if(!b)return;KIND=b.dataset.kind;store.set('cbt-kind',KIND);
+ EX=list().find(x=>x.k===store.get('cbt-exam-'+KIND))||list().find(x=>/min1|g-minpo/.test(x.k));renderGrids();syncHome()};
+document.querySelectorAll('#sg-e,#sg-m,#sg-g').forEach(g=>g.onclick=e=>{const b=e.target.closest('button');if(!b)return;EX=list().find(x=>x.k===b.dataset.k);store.set('cbt-exam-'+KIND,EX.k);$('#tm').value=EX.e?90:120;syncHome()});
+$('#year').onchange=()=>{store.set('cbt-year',$('#year').value);syncHome()};
+$('#own').oninput=()=>store.set(ownKey(),$('#own').value);
+$('#kai').oninput=()=>store.set(kaiKey(),$('#kai').value);
+$('#ttl').oninput=()=>store.set('cbt-ttl-'+KEY(),$('#ttl').value);
+$('#pmax').onchange=()=>store.set('cbt-pmax-'+KEY(),$('#pmax').value);
+$('#sample').onclick=()=>{$('#own').value=RQ[EX.smp].p;store.set(ownKey(),$('#own').value);$('#year').value='';store.set('cbt-year','');syncHome()};
+function updSaved(){const a=store.get('cbt-ans-'+KEY());$('#saved').textContent=a?`書きかけの答案あり（${[...a.replace(/\n/g,'')].length}字）・続きから再開します`:''}
+function loadToHome(rec){KIND=rec.kind||'shihou';store.set('cbt-kind',KIND);EX=list().find(e=>e.k===rec.exam)||EX;store.set('cbt-exam-'+KIND,EX.k);renderGrids();
+ store.set(ownKey(),rec.problem);if(rec.crit)store.set(kaiKey(),rec.crit);$('#year').value=rec.year||'';if(rec.kind&&rec.kind!=='shihou')store.set('cbt-ttl-'+KEY(),rec.title);
+ syncHome();show('v-home');toast('問題を読み込みました。「開始」を押してください')}
+$('#kocr').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)readPdfInto(f,$('#kai'),$('#kst'),kaiKey())};
+renderGrids();syncHome();
+
+/* ---------- 試験画面：表示・配置 ---------- */
+const ex=$('#ex');let Z=+(store.get('cbt-z')||1);
+const L={order:['prob','ans','law'],vis:{prob:1,ans:1,law:1},w:{prob:1,ans:1.05,law:.95}};
+const narrow=()=>matchMedia('(max-width:900px)').matches;
+let mobileCur='prob';
+function layout(){
+ const panes=$('#panes'),g=[...document.querySelectorAll('.gut')];
+ if(narrow()){L.order.forEach(k=>$('#pa-'+k).hidden=k!==mobileCur);g.forEach(x=>x.hidden=true);
+  document.querySelectorAll('[data-pane]').forEach(b=>b.classList.toggle('on',b.dataset.pane===mobileCur));setTimeout(fitAns,0);return}
+ const vis=L.order.filter(k=>L.vis[k]);let col=1;const cols=[];
+ L.order.forEach(k=>$('#pa-'+k).hidden=!L.vis[k]);g.forEach(x=>x.hidden=true);
+ vis.forEach((k,i)=>{if(i){const gg=g[i-1];gg.hidden=false;gg.style.gridColumn=col;gg.dataset.l=vis[i-1];gg.dataset.r=k;cols.push('6px');col++}
+  $('#pa-'+k).style.gridColumn=col;cols.push(`minmax(0,${L.w[k]}fr)`);col++});
+ panes.style.gridTemplateColumns=cols.join(' ');panes.style.gridTemplateRows='minmax(0,1fr)';
+ document.querySelectorAll('[data-pane]').forEach(b=>b.classList.toggle('on',!!L.vis[b.dataset.pane]));
+ setTimeout(()=>{fitAns();P.redraw()},0)}
+document.querySelectorAll('[data-pane]').forEach(b=>b.onclick=()=>{const k=b.dataset.pane;
+ if(narrow()){mobileCur=k}else{if(L.vis[k]&&L.order.filter(x=>L.vis[x]).length===1)return;L.vis[k]=L.vis[k]?0:1}layout()});
+$('#t-swap').onclick=()=>{const vis=L.order.filter(k=>L.vis[k]);if(vis.length<2)return;
+ const pos=L.order.map((k,i)=>L.vis[k]?i:-1).filter(i=>i>=0);const rot=vis.length===2?[vis[1],vis[0]]:[vis[2],vis[0],vis[1]];
+ pos.forEach((p,i)=>L.order[p]=rot[i]);layout()};
+document.querySelectorAll('.gut').forEach(gg=>gg.addEventListener('pointerdown',e=>{e.preventDefault();gg.setPointerCapture(e.pointerId);gg.classList.add('drag');
+ const l=gg.dataset.l,r=gg.dataset.r,a=$('#pa-'+l),b=$('#pa-'+r),wa=a.offsetWidth,wb=b.offsetWidth,sum=L.w[l]+L.w[r],x0=e.clientX;
+ const mv=ev=>{const d=ev.clientX-x0,na=Math.max(160,Math.min(wa+wb-160,wa+d));L.w[l]=sum*na/(wa+wb);L.w[r]=sum-L.w[l];layout()};
+ const up=()=>{gg.classList.remove('drag');gg.removeEventListener('pointermove',mv);gg.removeEventListener('pointerup',up)};
+ gg.addEventListener('pointermove',mv);gg.addEventListener('pointerup',up)}));
+addEventListener('resize',()=>{if(R)layout()});
+function setZ(z){lastFs=0;Z=Math.max(.8,Math.min(1.6,Math.round(z*10)/10));ex.style.setProperty('--z',Z);store.set('cbt-z',Z);setTimeout(fitAns,0)}
+$('#t-zin').onclick=()=>setZ(Z+.1);$('#t-zout').onclick=()=>setZ(Z-.1);
+function menu(id,anchor){const m=$(id);const on=!m.classList.contains('on');document.querySelectorAll('.menu').forEach(x=>x.classList.remove('on'));if(!on)return;
+ const r=anchor.getBoundingClientRect();m.style.left=Math.min(r.left,innerWidth-170)+'px';m.style.top=(r.bottom+4)+'px';m.classList.add('on')}
+document.addEventListener('pointerdown',e=>{if(!e.target.closest('.menu')&&!e.target.closest('#t-filt,#t-col'))document.querySelectorAll('.menu').forEach(x=>x.classList.remove('on'))});
+$('#t-filt').onclick=e=>menu('#m-filt',e.currentTarget);$('#t-col').onclick=e=>menu('#m-col',e.currentTarget);
+function setFilt(f){const el=$('#filt');ex.classList.toggle('f-dark',f==='dark');el.style.display=f==='yellow'||f==='cyan'?'block':'none';el.style.background=f==='yellow'?'#fff2a8':f==='cyan'?'#bfefff':'none';
+ document.querySelectorAll('#m-filt button').forEach(b=>b.classList.toggle('on',b.dataset.f===f));store.set('cbt-filt',f)}
+function setCol(c){const m={y:['#fff7cc','#18211f'],b:['#e1efff','#18211f'],k:['#111','#eee']}[c];
+ [$('#pa-ans'),$('#pa-law')].forEach(p=>{if(m){p.style.setProperty('--abg',m[0]);p.style.setProperty('--aink',m[1])}else{p.style.removeProperty('--abg');p.style.removeProperty('--aink')}});
+ $('#abody').style.background=m?m[0]:'';document.querySelectorAll('#m-col button').forEach(b=>b.classList.toggle('on',b.dataset.cl===c));store.set('cbt-col',c)}
+$('#m-filt').onclick=e=>{const b=e.target.closest('button');if(b){setFilt(b.dataset.f);$('#m-filt').classList.remove('on')}};
+$('#m-col').onclick=e=>{const b=e.target.closest('button');if(b){setCol(b.dataset.cl);$('#m-col').classList.remove('on')}};
+$('#t-help').onclick=()=>$('#help').classList.add('on');$('#help-x').onclick=()=>$('#help').classList.remove('on');
+
+/* ---------- コピー・切取り・貼付け ---------- */
+let CLIP='',lastField=null;
+['#ans','#kmemo'].forEach(s=>$(s).addEventListener('focus',()=>lastField=$(s)));
+const selText=()=>{const f=lastField;if(f&&document.activeElement===f||f&&f.selectionStart!==f.selectionEnd)return {f,t:f.value.slice(f.selectionStart,f.selectionEnd)};
+ const s=getSelection();if(s&&!s.isCollapsed&&$('#lawbox').contains(s.anchorNode))return {f:null,t:s.toString()};return {f:null,t:''}};
+document.querySelectorAll('#t-copy,#t-cut,#t-paste').forEach(b=>b.addEventListener('mousedown',e=>e.preventDefault()));
+$('#t-copy').onclick=()=>{const {t}=selText();if(!t){toast('答案・法文・構成用紙の範囲を選択してください');return}CLIP=t;try{navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}toast('コピーしました')};
+$('#t-cut').onclick=()=>{const {f,t}=selText();if(!f||!t){toast('答案か構成用紙の範囲を選択してください');return}CLIP=t;try{navigator.clipboard.writeText(t).catch(()=>{})}catch(e){}insertAt(f,'');toast('切り取りました')};
+$('#t-paste').onclick=()=>{const f=lastField||$('#ans');if(!CLIP){toast('先にコピーしてください');return}insertAt(f,CLIP)};
+function insertAt(f,t){const a=f.selectionStart,b=f.selectionEnd;f.focus();f.setRangeText(t,a,b,'end');f.dispatchEvent(new Event('input',{bubbles:true}))}
+$('#r-prob').addEventListener('copy',e=>e.preventDefault());
+
+/* ---------- 手書き（ペン・マーカー・消しゴム） ---------- */
+function Draw(cv,W,H,onChange){
+ const o={cv,W,H,strokes:[],tool:'pen',color:'#111',es:14,hz:false,on:true};
+ const ctx=cv.getContext('2d');
+ o.size=(w,h)=>{o.W=w;o.H=h;const d=Math.min(2,devicePixelRatio||1);cv.width=w*d;cv.height=h*d;cv.style.width=w+'px';cv.style.height=h+'px';ctx.setTransform(d,0,0,d,0,0);o.redraw()};
+ o.redraw=()=>{ctx.clearRect(0,0,o.W,o.H);for(const s of o.strokes){if(s.p.length<1)continue;ctx.save();ctx.lineCap=s.t==='mk'?'butt':'round';ctx.lineJoin='round';
+  ctx.globalAlpha=s.t==='mk'?.38:1;ctx.globalCompositeOperation=s.t==='mk'?'multiply':'source-over';ctx.strokeStyle=s.c;ctx.lineWidth=s.t==='mk'?18:2.2;
+  ctx.beginPath();ctx.moveTo(s.p[0][0],s.p[0][1]);if(s.p.length===1)ctx.lineTo(s.p[0][0]+.1,s.p[0][1]);for(const q of s.p.slice(1))ctx.lineTo(q[0],q[1]);ctx.stroke();ctx.restore()}};
+ const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*o.W/r.width,(e.clientY-r.top)*o.H/r.height]};
+ let cur=null;
+ const erase=p=>{const n=o.strokes.length;o.strokes=o.strokes.filter(s=>!s.p.some(q=>Math.hypot(q[0]-p[0],q[1]-p[1])<o.es+(s.t==='mk'?9:1)));if(o.strokes.length!==n)o.redraw()};
+ cv.addEventListener('pointerdown',e=>{if(!o.on)return;e.preventDefault();cv.setPointerCapture(e.pointerId);const p=pt(e);
+  if(o.tool==='erase'){cur={erase:1};erase(p);return}cur={t:o.tool,c:o.color,p:[p],y0:p[1],hz:o.hz};o.strokes.push(cur);o.redraw()});
+ cv.addEventListener('pointermove',e=>{if(!cur)return;const p=pt(e);if(cur.erase){erase(p);return}if(cur.hz)p[1]=cur.y0;const l=cur.p[cur.p.length-1];if(Math.hypot(l[0]-p[0],l[1]-p[1])<1.5)return;cur.p.push(p);o.redraw()});
+ const end=()=>{if(!cur)return;if(!cur.erase){cur.p=cur.p.map(q=>[Math.round(q[0]*10)/10,Math.round(q[1]*10)/10]);delete cur.y0;delete cur.hz}cur=null;onChange&&onChange()};
+ cv.addEventListener('pointerup',end);cv.addEventListener('pointercancel',end);
+ return o}
+
+/* ---------- 問題エリア ---------- */
+const paper=$('#paper'),pview=$('#pview'),psz=$('#psz');
+let PZ=1,ptool='hand',notes=[];
+const P=Draw($('#pcv'),680,800,()=>saveAnn());
+P.tool='pen';
+function paperSize(){const h=Math.max($('#r-prob').offsetHeight,600);P.size(680,h);psz.style.width=680*PZ+'px';psz.style.height=h*PZ+'px';paper.style.transform=`scale(${PZ})`;updPg()}
+function setPZ(z){const top=pview.scrollTop/(psz.offsetHeight||1);PZ=Math.max(.5,Math.min(2.5,Math.round(z*100)/100));paperSize();pview.scrollTop=top*psz.offsetHeight}
+$('#p-zin').onclick=()=>setPZ(PZ+.15);$('#p-zout').onclick=()=>setPZ(PZ-.15);
+$('#p-fit').onclick=()=>setPZ((pview.clientWidth-16)/680);
+const SUBS={pen:'#sub-pen',mk:'#sub-mk',text:'#sub-text',erase:'#sub-erase'};
+const tcol={pen:'#111',mk:'#ffe94d',text:'#fff3a0'};
+function setTool(t){ptool=t;document.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));
+ Object.entries(SUBS).forEach(([k,s])=>$(s).classList.toggle('on',k===t));
+ paper.classList.toggle('draw',t==='pen'||t==='mk'||t==='erase');paper.classList.toggle('texting',t==='text');paper.classList.toggle('erasing',t==='erase');
+ pview.classList.toggle('hand',t==='hand');if(t==='pen'||t==='mk'){P.tool=t;P.color=tcol[t]}if(t==='erase')P.tool='erase';
+ document.querySelectorAll(SUBS[t]+' .sw').forEach(b=>b.classList.toggle('on',b.dataset.c===tcol[t]));
+ document.querySelectorAll('#sub-erase [data-es]').forEach(b=>b.classList.toggle('on',+b.dataset.es===P.es))}
+$('#ptools').onclick=e=>{const b=e.target.closest('[data-tool]');if(b)setTool(b.dataset.tool)};
+Object.entries(SUBS).forEach(([k,s])=>$(s).addEventListener('click',e=>{const sw=e.target.closest('.sw');
+ if(sw){tcol[k]=sw.dataset.c;setTool(k)}const hz=e.target.closest('.hz');if(hz){P.hz=!P.hz;document.querySelectorAll('.hz').forEach(x=>x.classList.toggle('on',P.hz))}
+ const es=e.target.closest('[data-es]');if(es){P.es=+es.dataset.es;setTool('erase')}}));
+$('#p-clr').onclick=()=>ask('問題文への書き込み（ペン・マーカー・テキスト）をすべて消します。','消す',()=>{P.strokes=[];notes=[];P.redraw();renderNotes();saveAnn()});
+/* ハンド */
+pview.addEventListener('pointerdown',e=>{if(ptool!=='hand'||e.pointerType==='touch'||e.target.closest('.pnote'))return;const x0=e.clientX,y0=e.clientY,sl=pview.scrollLeft,st=pview.scrollTop;pview.classList.add('drag');
+ const mv=ev=>{pview.scrollLeft=sl-(ev.clientX-x0);pview.scrollTop=st-(ev.clientY-y0)};const up=()=>{pview.classList.remove('drag');removeEventListener('pointermove',mv);removeEventListener('pointerup',up)};
+ addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+/* 頁 */
+const pgH=()=>Math.max(200,pview.clientHeight-30);
+function updPg(){const n=Math.max(1,Math.ceil(psz.offsetHeight/pgH()));$('#p-pgs').textContent='/ '+n;if(document.activeElement!==$('#p-pg'))$('#p-pg').value=Math.min(n,Math.floor(pview.scrollTop/pgH())+1)}
+pview.addEventListener('scroll',updPg);
+$('#p-prev').onclick=()=>{pview.scrollTop-=pgH()};$('#p-next').onclick=()=>{pview.scrollTop+=pgH()};
+$('#p-pg').addEventListener('change',()=>{const n=+z2h($('#p-pg').value)||1;pview.scrollTop=(n-1)*pgH()});
+/* テキスト（付箋） */
+paper.addEventListener('pointerdown',e=>{if(ptool!=='text'||e.target.closest('.pnote'))return;e.preventDefault();const r=paper.getBoundingClientRect();
+ const n={id:Date.now().toString(36),x:Math.round((e.clientX-r.left)/PZ),y:Math.round((e.clientY-r.top)/PZ),c:tcol.text,t:''};notes.push(n);renderNotes();
+ const el=document.querySelector(`[data-nid="${n.id}"] .tx`);el&&el.focus()});
+function renderNotes(){$('#pnotes').innerHTML=notes.map(n=>`<div class="pnote" data-nid="${esc(n.id)}" style="left:${+n.x}px;top:${+n.y}px;background:${/^#[0-9a-f]{6}$/i.test(n.c)?n.c:'#fff3a0'}"><div class="gr"></div><div class="tx" contenteditable="true">${esc(n.t)}</div></div>`).join('')}
+$('#pnotes').addEventListener('input',e=>{const d=e.target.closest('.pnote');const n=notes.find(x=>x.id===d.dataset.nid);if(n){n.t=e.target.innerText;saveAnn()}});
+$('#pnotes').addEventListener('pointerdown',e=>{const d=e.target.closest('.pnote');if(!d)return;
+ if(ptool==='erase'){e.preventDefault();notes=notes.filter(x=>x.id!==d.dataset.nid);renderNotes();saveAnn();return}
+ if(!e.target.closest('.gr'))return;e.preventDefault();const n=notes.find(x=>x.id===d.dataset.nid),x0=e.clientX,y0=e.clientY,nx=n.x,ny=n.y;
+ const mv=ev=>{n.x=Math.round(nx+(ev.clientX-x0)/PZ);n.y=Math.round(ny+(ev.clientY-y0)/PZ);d.style.left=n.x+'px';d.style.top=n.y+'px'};
+ const up=()=>{removeEventListener('pointermove',mv);removeEventListener('pointerup',up);saveAnn()};addEventListener('pointermove',mv);addEventListener('pointerup',up)});
+let annT;function saveAnn(){clearTimeout(annT);annT=setTimeout(()=>{if(R)store.set('cbt-ann-'+R.key,JSON.stringify({s:P.strokes,n:notes}))},400)}
+function loadAnn(){P.strokes=[];notes=[];try{const a=JSON.parse(store.get('cbt-ann-'+R.key)||'null');if(a){P.strokes=Array.isArray(a.s)?a.s:[];notes=Array.isArray(a.n)?a.n:[]}}catch(e){}renderNotes();P.redraw()}
+new ResizeObserver(()=>{if(R)updPg()}).observe(pview);
+
+/* ---------- 構成用紙 ---------- */
+const kcvw=$('#kcvw');const K=Draw($('#kcv'),400,300,()=>{if(R)store.set('cbt-kdraw-'+R.key,JSON.stringify(K.strokes))});
+K.size(400,300);
+new ResizeObserver(()=>{if(kcvw.clientWidth)K.size(kcvw.clientWidth,kcvw.clientHeight)}).observe(kcvw);
+$('#t-kosei').onclick=()=>{const k=$('#kosei');k.classList.toggle('on');$('#t-kosei').classList.toggle('on',k.classList.contains('on'))};
+$('#k-x').onclick=()=>{$('#kosei').classList.remove('on');$('#t-kosei').classList.remove('on')};
+document.querySelectorAll('[data-kp]').forEach(b=>b.onclick=()=>{const k=$('#kosei');k.classList.toggle('left',b.dataset.kp==='left');k.classList.toggle('full',b.dataset.kp==='full');document.querySelectorAll('[data-kp]').forEach(x=>x.classList.toggle('on',x===b))});
+$('#ktools').onclick=e=>{const b=e.target.closest('[data-kt]');if(!b)return;K.tool=b.dataset.kt;if(b.dataset.c)K.color=b.dataset.c;document.querySelectorAll('[data-kt]').forEach(x=>x.classList.toggle('on',x===b))};
+$('#k-clr').onclick=()=>{K.strokes=[];K.redraw();if(R)store.set('cbt-kdraw-'+R.key,'[]')};
+$('#kmemo').addEventListener('input',()=>{if(R)store.set('cbt-memo-'+R.key,$('#kmemo').value)});
+
+/* ---------- 試験用法文 ---------- */
+let LAWS=[],cache={},curLaw=null,curData=null,bms=[];
+try{bms=JSON.parse(store.get('cbt-bm')||'[]')}catch(e){bms=[]}
+const GRP={kenpo:'公法系',gyoso:'公法系',gyote:'公法系',gyofu:'公法系',kokubai:'公法系',minpo:'民事系',shoho:'民事系',kaisha:'民事系',minso:'民事系',shakuchi:'民事系',keiho:'刑事系',keiso:'刑事系'};
+const idxP=fetch('laws/index.json').then(r=>r.json()).then(a=>{LAWS=a;renderToc()}).catch(()=>{$('#lawbox').innerHTML='<div class="empty">法文を読み込めませんでした。</div>'});
+function parseNum(q){q=z2h(q).replace(/\s/g,'');const m=q.match(/^第?(\d+)条?(?:(?:の|-|ノ)(\d+))?(?:(?:の|-|ノ)(\d+))?条?$/);
+ if(!m)return null;return '第'+kan(+m[1])+'条'+(m[2]?'の'+kan(+m[2]):'')+(m[3]?'の'+kan(+m[3]):'')}
+const aid=(k,n)=>'a-'+k+'-'+n;
+function renderToc(){const q=$('#tocq').value.trim();let h='';
+ for(const g of ['公法系','民事系','刑事系']){const ls=LAWS.filter(l=>GRP[l.k]===g);let part='';
+  for(const l of ls){const heads=l.k===curLaw&&curData?curData.map((o,i)=>o.h?{i,h:o.h,l:o.l}:null).filter(Boolean):[];
+   const hh=heads.filter(x=>!q||x.h.includes(q));const show=!q||l.name.includes(q)||hh.length;if(!show)continue;
+   part+=`<button class="it law ${l.k===curLaw?'cur':''}" data-law="${esc(l.k)}">${esc(l.name)}</button>`+hh.map(x=>`<button class="it hd${Math.min(6,x.l)}" data-hi="${x.i}">${esc(x.h)}</button>`).join('')}
+  if(part)h+=`<div class="grp">${g}</div>`+part}
+ $('#toclist').innerHTML=h||'<p class="empty">該当なし</p>'}
+$('#tocq').addEventListener('input',renderToc);
+$('#toclist').onclick=async e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.law){await openLaw(b.dataset.law);if(narrow())$('#toc').hidden=true}
+ else if(b.dataset.hi){const el=document.getElementById('h-'+curLaw+'-'+b.dataset.hi);if(el)$('#lawbox').scrollTop=el.offsetTop-6;if(narrow()){$('#toc').hidden=true;$('#l-toc').classList.remove('on')}}};
+async function openLaw(k,jump){await idxP;if(!LAWS.length)return;
+ if(curLaw!==k||!curData){$('#lawbox').innerHTML='<div class="empty">読み込み中…</div>';
+  try{if(!cache[k]){const r=await fetch('laws/'+k+'.json');cache[k]=await r.json()}}catch(e){$('#lawbox').innerHTML='<div class="empty">法文を読み込めませんでした。</div>';return}
+  curLaw=k;curData=cache[k];renderLaw();renderToc();store.set('cbt-law',k)}
+ if(jump)jumpTo(jump)}
+function artHTML(k,o){const on=bms.includes(k+'|'+o.n);
+ return `<div class="art" id="${esc(aid(k,o.n))}"><button class="bm ${on?'on':''}" data-bm="${esc(k+'|'+o.n)}" aria-label="ブックマーク">${on?'★':'☆'}</button><span class="an">${esc(o.n)}</span>${o.c?`<span class="cap">（${esc(o.c)}）</span>`:''}${(o.b||'').split('\n').map(p=>`<p>${esc(p)}</p>`).join('')}</div>`}
+function renderLaw(){const L=LAWS.find(l=>l.k===curLaw);$('#l-name').textContent=L.name;hits=[];hi=-1;$('#l-cnt').textContent='0/0';
+ $('#lawbox').innerHTML=`<div class="src">${esc(L.enf)}施行の版・本則${L.arts}条（e-Gov法令検索）</div><div class="law"><div class="ttl">${esc(L.name)}</div>${curData.map((o,i)=>o.n?artHTML(curLaw,o):`${o.h?`<div class="h" id="h-${curLaw}-${i}">${esc(o.h)}</div>`:''}${o.b?o.b.split('\n').map(p=>`<p>${esc(p)}</p>`).join(''):''}`).join('')}</div>`}
+function jumpTo(n){const el=document.getElementById(aid(curLaw,n));if(!el){toast(n+'は見つかりません');return}$('#lawbox').scrollTop=el.offsetTop-8;el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
+let hits=[],hi=-1;
+function clearHits(){document.querySelectorAll('#lawbox mark.hit').forEach(m=>m.replaceWith(...m.childNodes));$('#lawbox .law')&&$('#lawbox .law').normalize();hits=[];hi=-1}
+function lawSearch(){const q=$('#lq').value.trim();if(!curData){toast('先に目次から法令を選んでください');return}clearHits();if(!q){$('#l-cnt').textContent='0/0';return}
+ const n=parseNum(q);if(n){jumpTo(n);$('#l-cnt').textContent='条';return}
+ const w=document.createTreeWalker($('#lawbox .law'),NodeFilter.SHOW_TEXT);const nodes=[];let t;while(t=w.nextNode())if(t.data.includes(q))nodes.push(t);
+ for(const node of nodes){let x=node;let i;while(x&&(i=x.data.indexOf(q))>=0&&hits.length<3000){const m=x.splitText(i);x=m.splitText(q.length);const mk=document.createElement('mark');mk.className='hit';m.replaceWith(mk);mk.appendChild(m);hits.push(mk)}}
+ if(!hits.length){$('#l-cnt').textContent='0/0';toast('見つかりません');return}hi=-1;stepHit(1)}
+function stepHit(d){if(!hits.length)return;if(hits[hi])hits[hi].classList.remove('cur');hi=(hi+d+hits.length)%hits.length;const m=hits[hi];m.classList.add('cur');
+ const box=$('#lawbox');box.scrollTop=m.getBoundingClientRect().top-box.getBoundingClientRect().top+box.scrollTop-box.clientHeight/3;$('#l-cnt').textContent=(hi+1)+'/'+hits.length}
+$('#l-find').onclick=()=>{$('#lfind').classList.toggle('on');$('#l-find').classList.toggle('on');if($('#lfind').classList.contains('on'))$('#lq').focus();else clearHits()};
+$('#l-x').onclick=()=>{$('#lfind').classList.remove('on');$('#l-find').classList.remove('on');clearHits()};
+$('#lq').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();hits.length&&$('#lq').value.trim()===$('#lq').dataset.q?stepHit(e.shiftKey?-1:1):($('#lq').dataset.q=$('#lq').value.trim(),lawSearch())}});
+$('#l-up').onclick=()=>hits.length?stepHit(-1):lawSearch();$('#l-dn').onclick=()=>hits.length?stepHit(1):lawSearch();
+$('#l-toc').onclick=()=>{const t=$('#toc');t.hidden=!t.hidden;$('#l-toc').classList.toggle('on',!t.hidden)};
+$('#toc-x').onclick=()=>{$('#toc').hidden=true;$('#l-toc').classList.remove('on')};
+$('#l-bml').onclick=()=>{const ex0=$('#lawbox .bmlist');if(ex0){ex0.remove();return}
+ const d=document.createElement('div');d.className='bmlist';
+ d.innerHTML=`<div class="row" style="margin-bottom:8px"><b>ブックマーク一覧</b><span class="sp" style="flex:1"></span><button data-close="1">閉じる</button></div>`+(bms.map(b=>{const[k,n]=b.split('|');const L=LAWS.find(l=>l.k===k);return `<button class="it" data-law="${esc(k)}" data-go="${esc(n)}">${esc(L?L.name:k)} ${esc(n)}</button>`}).join('')||'<p class="empty">条文左の☆を押すと登録されます。</p>');
+ $('#lawbox').appendChild(d);d.style.top=$('#lawbox').scrollTop+'px'};
+$('#lawbox').addEventListener('click',async e=>{
+ const bm=e.target.closest('[data-bm]');if(bm){const v=bm.dataset.bm,i=bms.indexOf(v);if(i>=0)bms.splice(i,1);else bms.push(v);store.set('cbt-bm',JSON.stringify(bms));bm.classList.toggle('on',i<0);bm.textContent=i<0?'★':'☆';return}
+ if(e.target.closest('[data-close]')){e.target.closest('.bmlist').remove();return}
+ const g=e.target.closest('[data-go]');if(g){const k=g.dataset.law,n=g.dataset.go;g.closest('.bmlist').remove();await openLaw(k,n)}});
+
+/* ---------- 答案作成エリア ---------- */
+const PER=30,LPP=23;let MAXP=8,MAXL=184;
+const countLines=t=>t.split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil([...l].length/PER)),0);
+let R=null,last='';
+const ans=$('#ans');
+let lastFs=0;
+function fitAns(){const pa=$('#pa-ans');if(!pa||pa.hidden)return;const w=pa.clientWidth-56;if(w<=0)return;
+ const fs=Math.floor(Math.max(9,Math.min(17*Z,(w-22)/30))*2)/2;if(Math.abs(fs-lastFs)<.5)return;lastFs=fs;ans.style.setProperty('--fs',fs+'px')}
+new ResizeObserver(()=>requestAnimationFrame(fitAns)).observe($('#pa-ans'));
+function updStat(){
+ const v=ans.value,Ln=countLines(v),ch=[...v.replace(/\n/g,'')].length;
+ const cl=Math.max(1,countLines(v.slice(0,ans.selectionStart)+'x'));
+ $('#s-pg').textContent=Math.min(MAXP,Math.ceil(cl/LPP));$('#s-ln').textContent=(cl-1)%LPP+1;
+ $('#s-lines').textContent=v?Ln:0;$('#s-lines').className=Ln>=MAXL?'full':'';$('#s-ch').textContent=ch.toLocaleString();$('#s-maxl').textContent=MAXL;
+ const up=v?Math.ceil(Ln/LPP):0;$('#s-pages').innerHTML=Array.from({length:MAXP},(_,i)=>`<span class="${i<up?'u':''}" title="${i+1}頁"></span>`).join('')}
+/* 元に戻す・やり直す（10回） */
+let U=[],Rd=[],uT=0;
+function snap(){const s={v:ans.value,a:ans.selectionStart,b:ans.selectionEnd};const top=U[U.length-1];if(top&&top.v===s.v)return;U.push(s);if(U.length>11)U.shift();Rd=[];updUR()}
+function updUR(){$('#a-undo').disabled=U.length<2;$('#a-redo').disabled=!Rd.length}
+function applyS(s){ans.value=s.v;last=s.v;ans.setSelectionRange(s.a,s.b);store.set('cbt-ans-'+R.key,ans.value);updStat();updUR()}
+function undo(){if(U.length<2)return;Rd.push(U.pop());applyS(U[U.length-1])}
+function redo(){if(!Rd.length)return;const s=Rd.pop();U.push(s);applyS(s)}
+$('#a-undo').onclick=()=>{undo();ans.focus()};$('#a-redo').onclick=()=>{redo();ans.focus()};
+ans.addEventListener('keydown',e=>{const k=e.key.toLowerCase();if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?redo():undo()}else if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();redo()}});
+ans.addEventListener('input',()=>{
+ if(countLines(ans.value)>MAXL){const p=Math.max(0,ans.selectionStart-(ans.value.length-last.length));ans.value=last;ans.setSelectionRange(p,p);toast(`${MAXP}頁（${MAXL}行）の上限に達しました`)}
+ last=ans.value;store.set('cbt-ans-'+R.key,ans.value);updStat();
+ const now=Date.now();if(now-uT>700||!U.length)snap();else{U[U.length-1]={v:ans.value,a:ans.selectionStart,b:ans.selectionEnd};Rd=[];updUR()}uT=now});
+['keyup','click','select'].forEach(ev=>ans.addEventListener(ev,updStat));
+/* 検索・置換 */
+let fpos=[],fi=-1;
+function findAll(){const q=$('#f-q').value;fpos=[];if(q){let i=0;while((i=ans.value.indexOf(q,i))>=0){fpos.push(i);i+=q.length}}
+ if(fi>=fpos.length)fi=fpos.length-1;$('#f-cnt').textContent=(fpos.length?(fi+1):0)+'/'+fpos.length}
+function fstep(d){findAll();if(!fpos.length){toast('見つかりません');return}fi=(fi+d+fpos.length)%fpos.length;const q=$('#f-q').value;
+ ans.focus();ans.setSelectionRange(fpos[fi],fpos[fi]+q.length);const pre=countLines(ans.value.slice(0,fpos[fi])+'x');ans.scrollTop=Math.max(0,(pre-3)*parseFloat(getComputedStyle(ans).lineHeight));
+ $('#f-cnt').textContent=(fi+1)+'/'+fpos.length;updStat()}
+$('#a-find').onclick=()=>{$('#findbar').classList.toggle('on');$('#a-find').classList.toggle('on');if($('#findbar').classList.contains('on'))$('#f-q').focus()};
+$('#f-x').onclick=()=>{$('#findbar').classList.remove('on');$('#a-find').classList.remove('on')};
+$('#f-q').addEventListener('input',()=>{fi=-1;findAll()});
+$('#f-q').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fstep(e.shiftKey?-1:1);$('#f-q').focus()}});
+$('#f-up').onclick=()=>fstep(-1);$('#f-dn').onclick=()=>fstep(1);
+function setVal(v){snap();ans.value=v;if(countLines(v)>MAXL){ans.value=last;toast('置換すると上限を超えます');return}last=v;store.set('cbt-ans-'+R.key,v);snap();updStat();findAll()}
+$('#f-rep').onclick=()=>{const q=$('#f-q').value,r=$('#f-r').value;if(!q)return;const a=ans.selectionStart,b=ans.selectionEnd;
+ if(ans.value.slice(a,b)===q){setVal(ans.value.slice(0,a)+r+ans.value.slice(b));ans.setSelectionRange(a,a+r.length)}fstep(1)};
+$('#f-all').onclick=()=>{const q=$('#f-q').value,r=$('#f-r').value;if(!q)return;findAll();const n=fpos.length;if(!n){toast('見つかりません');return}setVal(ans.value.split(q).join(r));toast(n+'件を置換しました')};
+
+/* ---------- タイマー・開始・終了 ---------- */
+let tick=null;
+function startTimer(min){clearInterval(tick);const el=$('#r-timer');
+ if(!min){el.textContent='--:--:--';return}
+ const end=Date.now()+min*60000;
+ const f=()=>{const r=Math.max(0,end-Date.now()),s=Math.ceil(r/1000);
+  el.textContent=[Math.floor(s/3600),Math.floor(s%3600/60),s%60].map(x=>String(x).padStart(2,'0')).join(':');
+  $('#t-time').classList.toggle('low',r<=600000);
+  if(r<=0){clearInterval(tick);toast('試験時間が終了しました');endRon()}};
+ f();tick=setInterval(f,500)}
+function startRon(){
+ const p=$('#own').value.trim();if(!p){toast('問題文を読み込むか、貼り付けてください');$('#own').focus();return}
+ const min=Math.max(0,Math.min(999,Math.round(+z2h(String($('#tm').value))||0)));
+ MAXP=+$('#pmax').value||8;MAXL=MAXP*LPP;const y=KIND==='shihou'?$('#year').value:'';const kn=KINDS.find(x=>x.k===KIND).n;
+ R={key:KEY(),exam:EX.k,kind:KIND,start:Date.now(),min,subj:EX.s,year:y,problem:$('#own').value,crit:$('#kai').value,
+  title:KIND==='shihou'?(y?YEARS.find(x=>x[0]===y)[1].replace(/（.*）/,'')+' ':'')+EX.n:($('#ttl').value.trim()||kn+' '+EX.n)};
+ $('#r-title').textContent=R.title;$('#r-prob').textContent=R.problem;
+ ans.value=store.get('cbt-ans-'+R.key)||'';last=ans.value;U=[];Rd=[];snap();
+ $('#kmemo').value=store.get('cbt-memo-'+R.key)||'';try{K.strokes=JSON.parse(store.get('cbt-kdraw-'+R.key)||'[]')}catch(e){K.strokes=[]}K.redraw();
+ show('v-ron');setZ(Z);setFilt(store.get('cbt-filt')||'');setCol(store.get('cbt-col')||'');mobileCur='prob';layout();
+ setTool('hand');PZ=1;requestAnimationFrame(()=>{paperSize();if(pview.clientWidth<700)setPZ((pview.clientWidth-16)/680);loadAnn();updStat()});
+ if(narrow()){$('#toc').hidden=true;$('#l-toc').classList.remove('on')}
+ startTimer(min);openLaw(EX.law||store.get('cbt-law')||'minpo');
+}
+new ResizeObserver(()=>{if(R&&$('#v-ron').classList.contains('on'))paperSize()}).observe($('#r-prob'));
+$('#r-end').onclick=()=>ask('試験を終了しますか？　答案を提出して記録に保存します。','はい',endRon);
+async function endRon(){
+ clearInterval(tick);const v=ans.value,Ln=countLines(v);
+ const rec={id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),at:Date.now(),title:R.title,exam:R.exam,kind:R.kind,crit:R.crit,subj:R.subj,year:R.year,problem:R.problem,answer:v,memo:$('#kmemo').value,
+  chars:[...v.replace(/\n/g,'')].length,lines:v?Ln:0,pages:v?Math.ceil(Ln/LPP):0,maxl:MAXL,minutes:R.min,used:Math.round((Date.now()-R.start)/1000)};
+ await saveRec(rec);
+ ['cbt-ans-','cbt-memo-','cbt-ann-','cbt-kdraw-'].forEach(k=>store.set(k+R.key,''));
+ $('#kosei').classList.remove('on');$('#t-kosei').classList.remove('on');document.querySelectorAll('.menu').forEach(x=>x.classList.remove('on'));
+ R=null;toast('答案を提出し、記録に保存しました');openRec(rec,'home');
+}
+$('#go').onclick=startRon;
+
+
+}
+</script>
+</body>
+</html>
