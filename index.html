@@ -219,13 +219,13 @@ ul.ls,ol.ls{margin:6px 0;padding-left:1.3em}ol.ls li{margin-bottom:6px}
      <span class="note" id="yearhint" style="align-self:end"></span>
     </div>
     <label class="fl" id="ttlrow" hidden><span>タイトル（任意）</span><input type="text" id="ttl" placeholder="例：伊藤塾 答練 民法 第3回／事例研究 第5問"></label>
-    <div class="row" id="ocrrow"><label class="filebtn pri">問題文をPDFから読み込む<input type="file" id="ocr" accept="application/pdf" multiple></label><button id="sample" hidden>サンプル問題を入れる</button><span id="ocrst" class="note"></span></div>
-    <label class="fl"><span>問題文</span><textarea class="box" id="own" placeholder="問題文を貼り付けるか、文字入りPDFから読み込む"></textarea></label>
+    <div class="row" id="ocrrow"><label class="filebtn pri">問題文を写真・PDFから読み込む<input type="file" id="ocr" accept="image/*,application/pdf" multiple></label><button id="sample" hidden>サンプル問題を入れる</button><span id="ocrst" class="note"></span></div>
+    <label class="fl"><span>問題文</span><textarea class="box" id="own" placeholder="写真・PDFから読み込むか、問題文を貼り付け"></textarea></label>
    </div>
    <div class="sel form">
     <h2 style="margin:0">4. 解説・出題趣旨・模範答案（任意）</h2>
-    <p class="note" style="margin:0">ここに入れた解説は、試験終了後に答案と並べて表示されます。</p>
-    <div class="row" id="kocrrow"><label class="filebtn">解説をPDFから読み込む<input type="file" id="kocr" accept="application/pdf" multiple></label><span id="kst" class="note"></span></div>
+    <p class="note" style="margin:0">ここに入れた解説は、試験終了後に答案と並べて表示されます。写真は複数枚まとめて選べます（ページ順に選んでください）。</p>
+    <div class="row" id="kocrrow"><label class="filebtn">解説を写真・PDFから読み込む<input type="file" id="kocr" accept="image/*,application/pdf" multiple></label><span id="kst" class="note"></span></div>
     <textarea class="box" id="kai" rows="6" placeholder="解説・出題趣旨・採点基準・模範答案などを貼り付け"></textarea>
    </div>
    <div class="sel">
@@ -371,13 +371,30 @@ class CMapF{constructor(){}async fetch({name}){const m=await loadCmaps();const b
  const bin=atob(b),u=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);return {cMapData:u,compressionType:1}}}
 async function pdfText(pdf){let t='';for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i);const c=await pg.getTextContent();let line='';
  for(const it of c.items){line+=it.str;if(it.hasEOL){t+=line+'\n';line=''}}t+=line+'\n'}return t.replace(/\n{3,}/g,'\n\n').trim()}
-async function filesToMaterial(files){let text='';const imgs=[];
- for(const f of files){if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){const pdf=await openPdf(f);const t=await pdfText(pdf);
-  const jp=(t.match(/[぀-ヿ一-鿿]/g)||[]).length;if(jp<20)throw {code:'scan'};text+=(text?'\n\n':'')+t}else throw {code:'image'}}
- return {imgs,text,cut:false}}
-const errMsg=e=>e&&e.code==='scan'?'文字の入っていないPDF（スキャン画像）は読み込めません。文章を貼り付けてください':e&&e.code==='image'?'写真の文字読み取りはこの版にはありません。文字入りPDFを選ぶか、文章を貼り付けてください':'読み込めませんでした。文章を貼り付けてください';
-async function readPdfInto(files,ta,st,key){st.className='note busy';st.textContent='読み込み中…';
- try{const {text}=await filesToMaterial(files);const cur=ta.value.trim();ta.value=cur?cur+'\n\n'+text:text;store.set(key,ta.value);st.className='note';st.textContent='読み込みました。崩れている所がないか確認してください。'}
+/* 写真の文字読み取り（ブラウザ内OCR：Tesseract.js） */
+let tessP=null;
+const loadTess=()=>tessP||(tessP=loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'));
+async function imgToCanvas(src){const img=await new Promise((ok,ng)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=ng;i.src=src});
+ const k=Math.min(2.2,2600/Math.max(img.width,img.height));const cv=document.createElement('canvas');cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
+ const x=cv.getContext('2d');x.filter='grayscale(1) contrast(1.25)';x.drawImage(img,0,0,cv.width,cv.height);return cv}
+async function pdfCanvases(pdf,max){const out=[];for(let i=1;i<=Math.min(pdf.numPages,max);i++){const pg=await pdf.getPage(i);const v0=pg.getViewport({scale:1});
+ const vp=pg.getViewport({scale:Math.min(3,2600/Math.max(v0.width,v0.height))});const cv=document.createElement('canvas');cv.width=vp.width;cv.height=vp.height;
+ const cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,cv.width,cv.height);await pg.render({canvasContext:cx,viewport:vp}).promise;out.push(cv)}return out}
+const tidyJa=t=>t.replace(/\r/g,'').replace(/([^\x00-\x7F]) +(?=[^\x00-\x7F])/g,'$1').replace(/([^\x00-\x7F]) +(?=[0-9A-Za-z])/g,'$1').replace(/([0-9A-Za-z]) +(?=[^\x00-\x7F])/g,'$1').replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+async function ocrCanvases(cvs,prog){await loadTess();const w=await window.Tesseract.createWorker('jpn',1,{logger:m=>{if(m.status==='recognizing text')prog(m.progress)}});
+ try{let out='';for(let i=0;i<cvs.length;i++){prog(0,i+1,cvs.length);const r=await w.recognize(cvs[i]);out+=(out?'\n\n':'')+tidyJa(r.data.text||'')}return out}finally{await w.terminate()}}
+async function filesToMaterial(files,_max,st){let text='';const cvs=[];
+ for(const f of files){
+  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){const pdf=await openPdf(f);let t='';try{t=await pdfText(pdf)}catch(e){}
+   const jp=(t.match(/[぀-ヿ一-鿿]/g)||[]).length;
+   if(jp>pdf.numPages*40)text+=(text?'\n\n':'')+t;else cvs.push(...await pdfCanvases(pdf,20))}
+  else if(f.type.startsWith('image/')||/\.(jpe?g|png|heic|webp)$/i.test(f.name)){const u=URL.createObjectURL(f);try{cvs.push(await imgToCanvas(u))}catch(e){throw {code:'img'}}finally{URL.revokeObjectURL(u)}}}
+ if(cvs.length){let page=1,tot=cvs.length;const t=await ocrCanvases(cvs,(p,i,n)=>{if(i){page=i;tot=n}if(st)st.textContent=`文字を読み取り中… ${page}/${tot}枚 ${Math.round((p||0)*100)}%`});text+=(text?'\n\n':'')+t}
+ if(!text.trim())throw {code:'empty'};
+ return {imgs:[],text,cut:false}}
+const errMsg=e=>e&&e.code==='img'?'この写真の形式は読み込めません（HEICなら、iPhoneの設定→カメラ→フォーマットを「互換性優先」にするか、スクショにして選んでください）':e&&e.code==='empty'?'文字が見つかりませんでした。明るく、まっすぐ撮った写真でお試しください':'読み込めませんでした。通信状態を確認するか、文章を貼り付けてください';
+async function readPdfInto(files,ta,st,key){st.className='note busy';st.textContent='読み込み中…（初回は読み取り用データの取得に少し時間がかかります）';
+ try{const {text}=await filesToMaterial(files,20,st);const cur=ta.value.trim();ta.value=cur?cur+'\n\n'+text:text;store.set(key,ta.value);st.className='note';st.textContent='読み込みました。自動の読み取りなので、誤字や改行の崩れを確認して直してください。'}
  catch(e){st.className='note';st.textContent=errMsg(e)}}
 $('#ocr').onchange=e=>{const f=[...e.target.files];e.target.value='';if(f.length)readPdfInto(f,$('#own'),$('#ocrst'),ownKey())};
 
