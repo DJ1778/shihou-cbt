@@ -103,7 +103,7 @@ h2{font-size:20px;margin:26px 0 10px}
 .pnote .tx{padding:3px 6px;outline:none;min-height:1.6em;white-space:pre-wrap}
 .paper.erasing .pnote{outline:2px dashed var(--warn);cursor:pointer}
 /* 答案エリア */
-.abody{flex:1;overflow:auto;padding:.6em;display:flex;flex-direction:column;align-items:center}
+.abody{flex:1;overflow:auto;scrollbar-gutter:stable;padding:.6em;display:flex;flex-direction:column;align-items:center}
 .findbar{display:none;gap:.35em;align-items:center;padding:.35em .5em;border-bottom:1px solid var(--line);flex-wrap:wrap}
 .findbar.on{display:flex}
 .findbar input{min-height:2.4em;font-size:16px;width:9em}
@@ -480,8 +480,8 @@ const RQ={
 
 /* ---------- 試験選択 ---------- */
 const EXAMS=[
- {k:'tosan',n:'倒産法',s:'倒産法',e:1},{k:'sozei',n:'租税法',s:'租税法',e:1},{k:'keizai',n:'経済法',s:'経済法',e:1},{k:'chizai',n:'知的財産法',s:'知的財産法',e:1},
- {k:'rodo',n:'労働法',s:'労働法',e:1},{k:'kankyo',n:'環境法',s:'環境法',e:1},{k:'kokko',n:'国際関係法（公法系）',s:'国際関係法（公法系）',e:1},{k:'kokushi',n:'国際関係法（私法系）',s:'国際関係法（私法系）',e:1},
+ {k:'tosan',n:'倒産法',s:'倒産法',e:1,law:'hasan'},{k:'sozei',n:'租税法',s:'租税法',e:1,law:'shotoku'},{k:'keizai',n:'経済法',s:'経済法',e:1,law:'dokkin'},{k:'chizai',n:'知的財産法',s:'知的財産法',e:1,law:'tokkyo'},
+ {k:'rodo',n:'労働法',s:'労働法',e:1,law:'roki'},{k:'kankyo',n:'環境法',s:'環境法',e:1,law:'kankihon'},{k:'kokko',n:'国際関係法（公法系）',s:'国際関係法（公法系）',e:1,law:'kenpo'},{k:'kokushi',n:'国際関係法（私法系）',s:'国際関係法（私法系）',e:1,law:'tsusokuho'},
  {k:'ko1',n:'公法系科目第１問',s:'憲法',law:'kenpo'},{k:'ko2',n:'公法系科目第２問',s:'行政法',law:'gyoso'},
  {k:'min1',n:'民事系科目第１問',s:'民法',law:'minpo',smp:'civ'},{k:'min2',n:'民事系科目第２問',s:'商法',law:'kaisha'},{k:'min3',n:'民事系科目第３問',s:'民事訴訟法',law:'minso'},
  {k:'kei1',n:'刑事系科目第１問',s:'刑法',law:'keiho',smp:'crim'},{k:'kei2',n:'刑事系科目第２問',s:'刑事訴訟法',law:'keiso'}];
@@ -556,7 +556,7 @@ document.querySelectorAll('.gut').forEach(gg=>gg.addEventListener('pointerdown',
  const up=()=>{gg.classList.remove('drag');gg.removeEventListener('pointermove',mv);gg.removeEventListener('pointerup',up)};
  gg.addEventListener('pointermove',mv);gg.addEventListener('pointerup',up)}));
 addEventListener('resize',()=>{if(R)layout()});
-function setZ(z){Z=Math.max(.8,Math.min(1.6,Math.round(z*10)/10));ex.style.setProperty('--z',Z);store.set('cbt-z',Z);setTimeout(fitAns,0)}
+function setZ(z){lastFs=0;Z=Math.max(.8,Math.min(1.6,Math.round(z*10)/10));ex.style.setProperty('--z',Z);store.set('cbt-z',Z);setTimeout(fitAns,0)}
 $('#t-zin').onclick=()=>setZ(Z+.1);$('#t-zout').onclick=()=>setZ(Z-.1);
 function menu(id,anchor){const m=$(id);const on=!m.classList.contains('on');document.querySelectorAll('.menu').forEach(x=>x.classList.remove('on'));if(!on)return;
  const r=anchor.getBoundingClientRect();m.style.left=Math.min(r.left,innerWidth-170)+'px';m.style.top=(r.bottom+4)+'px';m.classList.add('on')}
@@ -668,11 +668,13 @@ function parseNum(q){q=z2h(q).replace(/\s/g,'');const m=q.match(/^第?(\d+)条?(
  if(!m)return null;return '第'+kan(+m[1])+'条'+(m[2]?'の'+kan(+m[2]):'')+(m[3]?'の'+kan(+m[3]):'')}
 const aid=(k,n)=>'a-'+k+'-'+n;
 function renderToc(){const q=$('#tocq').value.trim();let h='';
- for(const g of ['公法系','民事系','刑事系']){const ls=LAWS.filter(l=>GRP[l.k]===g);let part='';
+ const GS=['公法系','民事系','刑事系','倒産法','租税法','経済法','知的財産法','労働法','環境法','国際関係法（私法系）'];const cg=curLaw&&(LAWS.find(l=>l.k===curLaw)||{}).g;const ord=cg?[cg,...GS.filter(x=>x!==cg)]:GS;
+ for(const g of ord){const ls=LAWS.filter(l=>(l.g||GRP[l.k])===g);let part='';
   for(const l of ls){const heads=l.k===curLaw&&curData?curData.map((o,i)=>o.h?{i,h:o.h,l:o.l}:null).filter(Boolean):[];
    const hh=heads.filter(x=>!q||x.h.includes(q));const show=!q||l.name.includes(q)||hh.length;if(!show)continue;
    part+=`<button class="it law ${l.k===curLaw?'cur':''}" data-law="${esc(l.k)}">${esc(l.name)}</button>`+hh.map(x=>`<button class="it hd${Math.min(6,x.l)}" data-hi="${x.i}">${esc(x.h)}</button>`).join('')}
   if(part)h+=`<div class="grp">${g}</div>`+part}
+ if(!q)h+='<p class="note" style="padding:.6em .7em">国際関係法（公法系）の条約はe-Govのデータにないため収録していません。</p>';
  $('#toclist').innerHTML=h||'<p class="empty">該当なし</p>'}
 $('#tocq').addEventListener('input',renderToc);
 $('#toclist').onclick=async e=>{const b=e.target.closest('button');if(!b)return;
@@ -717,8 +719,10 @@ const PER=30,LPP=23;let MAXP=8,MAXL=184;
 const countLines=t=>t.split('\n').reduce((n,l)=>n+Math.max(1,Math.ceil([...l].length/PER)),0);
 let R=null,last='';
 const ans=$('#ans');
-function fitAns(){const w=$('#abody').clientWidth-24;if(w>0)ans.style.setProperty('--fs',Math.max(9,Math.min(17*Z,(w-22)/30))+'px')}
-new ResizeObserver(fitAns).observe($('#abody'));
+let lastFs=0;
+function fitAns(){const pa=$('#pa-ans');if(!pa||pa.hidden)return;const w=pa.clientWidth-56;if(w<=0)return;
+ const fs=Math.floor(Math.max(9,Math.min(17*Z,(w-22)/30))*2)/2;if(Math.abs(fs-lastFs)<.5)return;lastFs=fs;ans.style.setProperty('--fs',fs+'px')}
+new ResizeObserver(()=>requestAnimationFrame(fitAns)).observe($('#pa-ans'));
 function updStat(){
  const v=ans.value,Ln=countLines(v),ch=[...v.replace(/\n/g,'')].length;
  const cl=Math.max(1,countLines(v.slice(0,ans.selectionStart)+'x'));
